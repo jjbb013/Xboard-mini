@@ -58,14 +58,6 @@ return [
             'region' => env('AWS_V2BOARD_REGION', 'us-east-1'),
         ],
 
-        'redis' => [
-            'driver' => 'redis',
-            'connection' => 'default',
-            'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => 90,
-            'block_for' => null,
-        ],
-
     ],
 
     /*

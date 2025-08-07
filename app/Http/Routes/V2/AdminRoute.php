@@ -215,13 +215,10 @@ class AdminRoute
                 'prefix' => 'system'
             ], function ($router) {
                 $router->get('/getSystemStatus', [SystemController::class, 'getSystemStatus']);
-                $router->get('/getQueueStats', [SystemController::class, 'getQueueStats']);
-                $router->get('/getQueueWorkload', [SystemController::class, 'getQueueWorkload']);
-                $router->get('/getQueueMasters', '\\Laravel\\Horizon\\Http\\Controllers\\MasterSupervisorController@index');
                 $router->get('/getSystemLog', [SystemController::class, 'getSystemLog']);
-                $router->get('/getHorizonFailedJobs', [SystemController::class, 'getHorizonFailedJobs']);
                 $router->post('/clearSystemLog', [SystemController::class, 'clearSystemLog']);
                 $router->get('/getLogClearStats', [SystemController::class, 'getLogClearStats']);
+                $router->get('/getQueueStats', [SystemController::class, 'getQueueStats']);
             });
 
             // Update

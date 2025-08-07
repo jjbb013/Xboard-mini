@@ -1,0 +1,113 @@
+version: '2'
+services:
+  # Web Service
+  - name: xboard-web
+    type: web
+    provider: docker
+    dockerfile: Dockerfile
+    ports:
+      - 7002
+    env:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_KEY
+        generate: secret-key
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        fromService:
+          name: xboard-db
+          type: database
+          key: host
+      - key: DB_PORT
+        fromService:
+          name: xboard-db
+          type: database
+          key: port
+      - key: DB_DATABASE
+        fromService:
+          name: xboard-db
+          type: database
+          key: database
+      - key: DB_USERNAME
+        fromService:
+          name: xboard-db
+          type: database
+          key: username
+      - key: DB_PASSWORD
+        fromService:
+          name: xboard-db
+          type: database
+          key: password
+      - key: CACHE_DRIVER
+        value: database
+      - key: SESSION_DRIVER
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+    build:
+      - command: composer install --no-dev --optimize-autoloader
+      - command: php artisan migrate --force
+      - command: php artisan xboard:install
+    command: php artisan octane:start --host=0.0.0.0 --port=7002
+
+  # Queue Worker Service
+  - name: xboard-queue
+    type: worker
+    provider: docker
+    dockerfile: Dockerfile
+    env:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_KEY
+        fromService:
+          name: xboard-web
+          type: web
+          key: APP_KEY
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        fromService:
+          name: xboard-db
+          type: database
+          key: host
+      - key: DB_PORT
+        fromService:
+          name: xboard-db
+          type: database
+          key: port
+      - key: DB_DATABASE
+        fromService:
+          name: xboard-db
+          type: database
+          key: database
+      - key: DB_USERNAME
+        fromService:
+          name: xboard-db
+          type: database
+          key: username
+      - key: DB_PASSWORD
+        fromService:
+          name: xboard-db
+          type: database
+          key: password
+      - key: CACHE_DRIVER
+        value: database
+      - key: SESSION_DRIVER
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+    build:
+      - command: composer install --no-dev --optimize-autoloader
+    command: php artisan queue:work --tries=3 --timeout=1800
+
+addons:
+  # MySQL Database
+  - name: xboard-db
+    type: database
+    provider: mysql
+    version: '8.0'
