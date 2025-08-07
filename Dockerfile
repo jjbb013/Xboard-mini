@@ -18,8 +18,8 @@ COPY .docker /
 
 # Add build arguments
 ARG CACHEBUST
-ARG REPO_URL
-ARG BRANCH_NAME
+ENV REPO_URL=https://github.com/jjbb013/Xboard-mini.git
+ENV BRANCH_NAME=master
 
 RUN echo "Attempting to clone branch: ${BRANCH_NAME} from ${REPO_URL} with CACHEBUST: ${CACHEBUST}" && \
     rm -rf ./* && \
@@ -41,4 +41,4 @@ ENV ENABLE_WEB=true \
     ENABLE_REDIS=false 
 
 EXPOSE 7001
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"] 
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
