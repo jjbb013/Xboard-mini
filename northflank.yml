@@ -27,7 +27,6 @@ services:
         value: database
     build:
       - command: mkdir -p /app/storage/database && touch /app/storage/database/database.sqlite
-      - command: composer install --no-dev --optimize-autoloader
       - command: php artisan cache:table
       - command: php artisan migrate --force
       - command: php artisan xboard:install

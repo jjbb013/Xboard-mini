@@ -63,3 +63,7 @@
           protocol: HTTP
       ```
     - **结论**: 这是确保应用能被公开访问的关键配置。
+- **`vendor` 目录缺失问题**:
+    - **问题**: 部署失败，日志显示 `Failed opening required '/www/vendor/autoload.php'`。
+    - **原因分析**: `composer install` 命令在 Northflank 的 `build` 步骤中执行。`build` 步骤在一个**临时容器**中运行，该容器在 `build` 结束后被丢弃。最终启动的服务是一个**全新的、不包含 `vendor` 目录的容器**，导致 `php artisan` 命令失败。
+    - **解决方案**: 必须将 `composer install` 命令从 `northflank.yml` 的 `build` 步骤中**移动到 `Dockerfile` 中**。这样，`vendor` 目录将被直接构建到最终的 Docker 镜像里，确保服务容器启动时该目录始终存在。
