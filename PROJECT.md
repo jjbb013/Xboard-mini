@@ -27,43 +27,37 @@
 
 ---
 
-## 4. 最终部署策略：单服务 + SupervisorD
+## 4. 最终部署策略：单服务 + SupervisorD + Entrypoint 脚本
 
-为了解决上述约束，我们采用 **单服务 (Single-Service) + SupervisorD** 的部署模型。
+为了解决上述约束，并确保部署的健壮性，我们采用 **单服务 (Single-Service) + SupervisorD + Entrypoint 脚本** 的最终模型。
 
 - **单一服务**: 在 Northflank 上只创建一个 `web` 类型的服务。
 - **单一存储卷**: 创建一个持久化存储卷，并挂载到这个单一服务上。
+- **Entrypoint 脚本 (`entrypoint.sh`)**:
+    - 这是 Docker 容器的**唯一入口点**。
+    - 该脚本在容器**每次启动时**运行。
+    - 它会检查应用是否已初始化（通过检查一个位于持久化存储卷中的 `.installed.lock` 文件）。
+    - **仅在首次启动时**，它会自动执行所有必要的数据库迁移和应用初始化命令 (`php artisan ...`)。
+    - 初始化完成后，它会启动 SupervisorD。
 - **SupervisorD 进程管理**:
-    - Docker 容器的入口点 (CMD) 是 `supervisord`。
     - SupervisorD 负责在容器内启动并管理两个必要的子进程：
-        1.  **Web 进程**: `php artisan octane:start`，负责处理外部 HTTP 请求。
-        2.  **队列工作进程**: `php artisan queue:work`，负责在后台处理异步任务。
-- **优势**: 此方案让两个进程在同一个容器文件系统内运行，因此可以无缝地共享挂载在存储卷上的 SQLite 数据库，完美地解决了卷无法共享的限制。
+        1.  **Web 进程**: `php artisan octane:start`
+        2.  **队列工作进程**: `php artisan queue:work`
+- **优势**: 此方案将所有初始化逻辑都封装在镜像内部，使其“自给自足”，不再依赖 Northflank `build` 步骤的特定行为，从根本上解决了 `vendor` 目录缺失和 `APP_KEY` 未设置等一系列问题。
 
 ---
 
 ## 5. 重要历史决策与故障排查
 
-- **移除 `laravel/horizon`**: Horizon 包强依赖 Redis，因此已被从 `composer.json` 中移除。所有相关的配置文件 (`horizon.php`) 和服务提供者 (`HorizonServiceProvider.php`) 也已被删除。
-- **重构 `StatisticalService`**: 此服务中原有的基于 Redis `zincrby` 的流量统计逻辑已被完全重构，现在使用数据库的 `updateOrCreate` 操作直接读写数据库。
-- **必须创建 `cache` 表**: 由于缓存驱动设置为 `database`，在执行 `php artisan migrate` 之前，必须先执行 `php artisan cache:table` 来创建缓存表所需的迁移文件。
-- **前端 `404` 错误**: 后端移除了与 Horizon 相关的 API 路由后，前端页面可能会因为请求一个已不存在的 API (`/api/.../getQueueStats`) 而在浏览器控制台产生 `404` 错误。经排查，这是符合预期的无害错误，因为前端项目是独立仓库，无法直接修改。此问题不影响后端服务的稳定运行。
-- **清理配置缓存**: 在移除 `horizon` 等包后，必须执行 `php artisan optimize:clear` 来清除所有缓存，以避免因旧的缓存配置导致应用崩溃。
-
----
-
-## 6. Northflank 平台特定配置要点
-
-- **端口协议必须为 HTTP**:
-    - **问题**: 在 Northflank 上，只有明确声明为 `HTTP` 协议的端口才会被分配一个公开的域名并接入其负载均衡器。如果只填写端口号（如 `7002`），平台会默认其为 `TCP` 协议，这样的端口无法从公网通过域名访问。
-    - **解决方案**: 在 `northflank.yml` 文件中，必须使用完整的结构化格式来定义端口，明确指定其协议：
-      ```yaml
-      ports:
-        - port: 7002
-          protocol: HTTP
-      ```
-    - **结论**: 这是确保应用能被公开访问的关键配置。
+- **`northflank.yml` 未生效的根本原因**:
+    - **问题**: 部署后出现 `MissingAppKeyException` 错误，端口仍为 TCP，存储卷未创建。
+    - **原因分析**: 经最终排查，根本原因在于我们将**一次性的初始化命令**（如 `php artisan migrate`）错误地放置在了 Northflank 的 `build` 步骤中。`build` 步骤在一个**临时的、一次性的容器**中运行，该容器在 `build` 结束后被丢弃。最终启动的服务是一个全新的、未被初始化的容器，因此所有配置和数据库表都不存在。
+    - **最终解决方案**: 采用 `entrypoint.sh` 脚本。将所有初始化逻辑从 `northflank.yml` 的 `build` 步骤中**彻底移除**，并转移到 `entrypoint.sh` 脚本中。该脚本会在最终的服务容器启动时、且仅在首次启动时执行这些初始化命令。
 - **`vendor` 目录缺失问题**:
     - **问题**: 部署失败，日志显示 `Failed opening required '/www/vendor/autoload.php'`。
-    - **原因分析**: `composer install` 命令在 Northflank 的 `build` 步骤中执行。`build` 步骤在一个**临时容器**中运行，该容器在 `build` 结束后被丢弃。最终启动的服务是一个**全新的、不包含 `vendor` 目录的容器**，导致 `php artisan` 命令失败。
-    - **解决方案**: 必须将 `composer install` 命令从 `northflank.yml` 的 `build` 步骤中**移动到 `Dockerfile` 中**。这样，`vendor` 目录将被直接构建到最终的 Docker 镜像里，确保服务容器启动时该目录始终存在。
+    - **解决方案**: 将 `composer install` 命令从 `northflank.yml` 的 `build` 步骤中**移动到 `Dockerfile` 中**，将依赖直接构建到镜像里。
+- **端口协议必须为 HTTP**:
+    - **问题**: Northflank 默认将端口识别为 TCP，导致无法从公网访问。
+    - **解决方案**: 在 `northflank.yml` 文件中，必须明确指定端口协议为 `HTTP`。
+- **移除 `laravel/horizon`**: Horizon 包强依赖 Redis，已被完全移除。
+- **必须创建 `cache` 表**: `database` 缓存驱动需要 `php artisan cache:table` 命令来创建迁移文件。

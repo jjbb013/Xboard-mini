@@ -19,6 +19,10 @@ RUN composer install --no-dev --optimize-autoloader
 # Copy Supervisor configuration
 COPY .docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+# Copy and set permissions for the entrypoint script
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 # Set permissions
 RUN chown -R www:www /www && \
     chmod -R 755 /www/storage && \
@@ -30,5 +34,5 @@ USER www
 # Expose port for Octane
 EXPOSE 7002
 
-# Start Supervisor
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Set the entrypoint
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

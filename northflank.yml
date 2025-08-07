@@ -1,6 +1,7 @@
 version: '2'
 services:
   # Single service for both Web and Queue Worker, managed by SupervisorD
+  # Initialization is handled by the entrypoint.sh script inside the container
   - name: xboard
     type: web
     provider: docker
@@ -25,12 +26,6 @@ services:
         value: database
       - key: QUEUE_CONNECTION
         value: database
-    build:
-      - command: mkdir -p /app/storage/database && touch /app/storage/database/database.sqlite
-      - command: php artisan cache:table
-      - command: php artisan migrate --force
-      - command: php artisan xboard:install
-      - command: php artisan optimize:clear
     volumes:
       - name: xboard-data
         path: /app/storage
