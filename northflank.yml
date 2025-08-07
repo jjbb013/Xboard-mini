@@ -30,6 +30,11 @@ services:
       - command: php artisan migrate --force
       - command: php artisan xboard:install
     command: php artisan octane:start --host=0.0.0.0 --port=7002
+    buildArgs:
+      - key: REPO_URL
+        value: https://github.com/cedar2025/Xboard
+      - key: BRANCH_NAME
+        value: master
     volumes:
       - name: xboard-data
         path: /app/storage
@@ -62,6 +67,11 @@ services:
     build:
       - command: composer install --no-dev --optimize-autoloader
     command: php artisan queue:work --tries=3 --timeout=1800
+    buildArgs:
+      - key: REPO_URL
+        value: https://github.com/cedar2025/Xboard
+      - key: BRANCH_NAME
+        value: master
     volumes:
       - name: xboard-data
         path: /app/storage
