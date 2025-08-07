@@ -1,44 +1,31 @@
 FROM phpswoole/swoole:php8.2-alpine
 
+# Install necessary PHP extensions and system packages
 COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 
-# Install PHP extensions one by one with lower optimization level for ARM64 compatibility
-RUN CFLAGS="-O0" install-php-extensions pcntl && \
-    CFLAGS="-O0 -g0" install-php-extensions bcmath && \
-    install-php-extensions zip && \
-    install-php-extensions redis && \
-    apk --no-cache add shadow sqlite mysql-client mysql-dev mariadb-connector-c git patch supervisor redis && \
-    addgroup -S -g 1000 www && adduser -S -G www -u 1000 www && \
-    (getent group redis || addgroup -S redis) && \
-    (getent passwd redis || adduser -S -G redis -H -h /data redis)
+RUN install-php-extensions pcntl bcmath zip pdo_mysql && \
+    apk --no-cache add git mysql-client supervisor
 
+# Set up work directory and user
 WORKDIR /www
+RUN addgroup -S -g 1000 www && adduser -S -G www -u 1000 www
 
-COPY .docker /
+# Copy application code
+COPY . .
 
-# Add build arguments
-ARG CACHEBUST
-ENV REPO_URL=https://github.com/jjbb013/Xboard-mini.git
-ENV BRANCH_NAME=master
-
-RUN echo "Attempting to clone branch: ${BRANCH_NAME} from ${REPO_URL} with CACHEBUST: ${CACHEBUST}" && \
-    rm -rf ./* && \
-    rm -rf .git && \
-    git config --global --add safe.directory /www && \
-    git clone --depth 1 --branch ${BRANCH_NAME} ${REPO_URL} .
-
+# Copy Supervisor configuration
 COPY .docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-RUN composer install --no-cache --no-dev \
-    && php artisan storage:link \
-    && chown -R www:www /www \
-    && chmod -R 775 /www \
-    && mkdir -p /data \
-    && chown redis:redis /data
-    
-ENV ENABLE_WEB=true \
-    ENABLE_HORIZON=true \
-    ENABLE_REDIS=false 
+# Set permissions
+RUN chown -R www:www /www && \
+    chmod -R 755 /www/storage && \
+    chmod -R 755 /www/bootstrap/cache
 
-EXPOSE 7001
+# Switch to non-root user
+USER www
+
+# Expose port for Octane
+EXPOSE 7002
+
+# Start Supervisor
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

@@ -1,7 +1,7 @@
 version: '2'
 services:
-  # Web Service
-  - name: xboard-web
+  # Single service for both Web and Queue Worker, managed by SupervisorD
+  - name: xboard
     type: web
     provider: docker
     dockerfile: Dockerfile
@@ -19,65 +19,24 @@ services:
       - key: DB_DATABASE
         value: /app/storage/database/database.sqlite
       - key: CACHE_DRIVER
-        value: file
+        value: database
       - key: SESSION_DRIVER
-        value: file
+        value: database
       - key: QUEUE_CONNECTION
         value: database
     build:
       - command: mkdir -p /app/storage/database && touch /app/storage/database/database.sqlite
       - command: composer install --no-dev --optimize-autoloader
+      - command: php artisan cache:table
       - command: php artisan migrate --force
       - command: php artisan xboard:install
-    command: php artisan octane:start --host=0.0.0.0 --port=7002
-    buildArgs:
-      - key: REPO_URL
-        value: https://github.com/cedar2025/Xboard
-      - key: BRANCH_NAME
-        value: master
-    volumes:
-      - name: xboard-data
-        path: /app/storage
-
-  # Queue Worker Service
-  - name: xboard-queue
-    type: worker
-    provider: docker
-    dockerfile: Dockerfile
-    env:
-      - key: APP_ENV
-        value: production
-      - key: APP_DEBUG
-        value: false
-      - key: APP_KEY
-        fromService:
-          name: xboard-web
-          type: web
-          key: APP_KEY
-      - key: DB_CONNECTION
-        value: sqlite
-      - key: DB_DATABASE
-        value: /app/storage/database/database.sqlite
-      - key: CACHE_DRIVER
-        value: file
-      - key: SESSION_DRIVER
-        value: file
-      - key: QUEUE_CONNECTION
-        value: database
-    build:
-      - command: composer install --no-dev --optimize-autoloader
-    command: php artisan queue:work --tries=3 --timeout=1800
-    buildArgs:
-      - key: REPO_URL
-        value: https://github.com/cedar2025/Xboard
-      - key: BRANCH_NAME
-        value: master
+      - command: php artisan optimize:clear
     volumes:
       - name: xboard-data
         path: /app/storage
 
 addons:
-  # Single Persistent Storage for all app data
+  # Persistent Storage for SQLite DB, file cache, etc.
   - name: xboard-data
     type: storage
     provider: northflank
