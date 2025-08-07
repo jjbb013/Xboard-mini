@@ -15,43 +15,24 @@ services:
       - key: APP_KEY
         generate: secret-key
       - key: DB_CONNECTION
-        value: mysql
-      - key: DB_HOST
-        fromService:
-          name: xboard-db
-          type: database
-          key: host
-      - key: DB_PORT
-        fromService:
-          name: xboard-db
-          type: database
-          key: port
+        value: sqlite
       - key: DB_DATABASE
-        fromService:
-          name: xboard-db
-          type: database
-          key: database
-      - key: DB_USERNAME
-        fromService:
-          name: xboard-db
-          type: database
-          key: username
-      - key: DB_PASSWORD
-        fromService:
-          name: xboard-db
-          type: database
-          key: password
+        value: /app/storage/database/database.sqlite
       - key: CACHE_DRIVER
-        value: database
+        value: file
       - key: SESSION_DRIVER
-        value: database
+        value: file
       - key: QUEUE_CONNECTION
         value: database
     build:
+      - command: mkdir -p /app/storage/database && touch /app/storage/database/database.sqlite
       - command: composer install --no-dev --optimize-autoloader
       - command: php artisan migrate --force
       - command: php artisan xboard:install
     command: php artisan octane:start --host=0.0.0.0 --port=7002
+    volumes:
+      - name: xboard-data
+        path: /app/storage
 
   # Queue Worker Service
   - name: xboard-queue
@@ -69,45 +50,24 @@ services:
           type: web
           key: APP_KEY
       - key: DB_CONNECTION
-        value: mysql
-      - key: DB_HOST
-        fromService:
-          name: xboard-db
-          type: database
-          key: host
-      - key: DB_PORT
-        fromService:
-          name: xboard-db
-          type: database
-          key: port
+        value: sqlite
       - key: DB_DATABASE
-        fromService:
-          name: xboard-db
-          type: database
-          key: database
-      - key: DB_USERNAME
-        fromService:
-          name: xboard-db
-          type: database
-          key: username
-      - key: DB_PASSWORD
-        fromService:
-          name: xboard-db
-          type: database
-          key: password
+        value: /app/storage/database/database.sqlite
       - key: CACHE_DRIVER
-        value: database
+        value: file
       - key: SESSION_DRIVER
-        value: database
+        value: file
       - key: QUEUE_CONNECTION
         value: database
     build:
       - command: composer install --no-dev --optimize-autoloader
     command: php artisan queue:work --tries=3 --timeout=1800
+    volumes:
+      - name: xboard-data
+        path: /app/storage
 
 addons:
-  # MySQL Database
-  - name: xboard-db
-    type: database
-    provider: mysql
-    version: '8.0'
+  # Single Persistent Storage for all app data
+  - name: xboard-data
+    type: storage
+    provider: northflank
