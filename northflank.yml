@@ -6,7 +6,8 @@ services:
     provider: docker
     dockerfile: Dockerfile
     ports:
-      - 7002
+      - port: 7002
+        protocol: HTTP
     env:
       - key: APP_ENV
         value: production
