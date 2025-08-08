@@ -40,8 +40,8 @@ if [ ! -f "$LOCK_FILE" ]; then
     echo "Running database migrations..."
     php artisan migrate --force && echo "Migration successful."
 
-    echo "Installing application..."
-    php artisan xboard:install
+    echo "Creating admin user..."
+    php artisan xboard:create-admin
 
     # 6. Final cache clear
     echo "Clearing all caches post-installation..."
