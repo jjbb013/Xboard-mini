@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Exit immediately if a command exits with a non-zero status.
+set -e
+
 # Define paths based on the WORKDIR in Dockerfile
 STORAGE_PATH="/www/storage"
 LOCK_FILE="$STORAGE_PATH/.installed.lock"
@@ -35,7 +38,7 @@ if [ ! -f "$LOCK_FILE" ]; then
 
     # 5. Run migrations and initial setup
     echo "Running database migrations..."
-    php artisan migrate --force
+    php artisan migrate --force && echo "Migration successful."
 
     echo "Installing application..."
     php artisan xboard:install
