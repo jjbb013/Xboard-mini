@@ -11,6 +11,13 @@ ENV_EXAMPLE_FILE="/www/.env.example"
 
 # Check if the application has been installed
 if [ ! -f "$LOCK_FILE" ]; then
+    echo "--- DIAGNOSTICS: START ---"
+    echo "Listing /www contents:"
+    ls -la /www
+    echo "Listing /www/storage contents:"
+    ls -la /www/storage || echo "/www/storage does not exist yet."
+    echo "--- DIAGNOSTICS: END ---"
+
     echo "Application not installed. Starting installation..."
 
     # 1. Create .env file from example
@@ -26,9 +33,17 @@ if [ ! -f "$LOCK_FILE" ]; then
     php artisan key:generate
 
     # 3. Ensure the database file exists
-    echo "Creating database directory..."
+    echo "Creating database directory and file..."
     mkdir -p "$STORAGE_PATH/database"
     touch "$STORAGE_PATH/database/database.sqlite"
+    
+    echo "--- DIAGNOSTICS: POST-TOUCH ---"
+    echo "Listing /www/storage contents:"
+    ls -la /www/storage
+    echo "Listing /www/storage/database contents:"
+    ls -la /www/storage/database
+    echo "--- DIAGNOSTICS: END ---"
+
 
     # 4. Force clear any cached configurations
     echo "Clearing caches before migration..."
@@ -37,8 +52,9 @@ if [ ! -f "$LOCK_FILE" ]; then
     php artisan view:clear
 
     # 5. Run migrations and initial setup
-    echo "Running database migrations..."
-    php artisan migrate --force && echo "Migration successful."
+    echo "Running database migrations with verbose output..."
+    php artisan migrate --force -vvv
+    echo "Migration command finished."
 
     echo "Creating admin user..."
     php artisan xboard:create-admin
