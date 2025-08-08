@@ -6,29 +6,6 @@ services:
     type: web
     provider: docker
     dockerfile: Dockerfile
-    ports:
-      - port: 7002
-        protocol: HTTP
-    env:
-      - key: APP_ENV
-        value: production
-      - key: APP_DEBUG
-        value: false
-      - key: APP_KEY
-        generate: secret-key
-      - key: DB_CONNECTION
-        value: sqlite
-      - key: DB_DATABASE
-        value: /app/storage/database/database.sqlite
-      - key: CACHE_DRIVER
-        value: database
-      - key: SESSION_DRIVER
-        value: database
-      - key: QUEUE_CONNECTION
-        value: database
-    volumes:
-      - name: xboard-data
-        path: /www/storage
 
 addons:
   # Persistent Storage for SQLite DB, file cache, etc.
