@@ -25,8 +25,8 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Set permissions
 RUN chown -R www:www /www && \
-    chmod -R 755 /www/storage && \
-    chmod -R 755 /www/bootstrap/cache
+    chmod -R 777 /www/storage && \
+    chmod -R 777 /www/bootstrap/cache
 
 # Switch to non-root user
 USER www
