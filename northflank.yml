@@ -28,7 +28,7 @@ services:
         value: database
     volumes:
       - name: xboard-data
-        path: /app/storage
+        path: /www/storage
 
 addons:
   # Persistent Storage for SQLite DB, file cache, etc.

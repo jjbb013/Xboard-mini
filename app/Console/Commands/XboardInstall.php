@@ -100,39 +100,39 @@ class XboardInstall extends Command
                 return; // 用户选择退出安装
             }
             $envConfig['APP_KEY'] = 'base64:' . base64_encode(Encrypter::generateKey('AES-256-CBC'));
-            $isReidsValid = false;
-            while (!$isReidsValid) {
-                // 判断是否为Docker环境
-                if ($isDocker == 'true' && ($enableRedis || confirm(label: '是否启用Docker内置的Redis', default: true, yes: '启用', no: '不启用'))) {
-                    $envConfig['REDIS_HOST'] = '/data/redis.sock';
-                    $envConfig['REDIS_PORT'] = 0;
-                    $envConfig['REDIS_PASSWORD'] = null;
-                } else {
-                    $envConfig['REDIS_HOST'] = text(label: '请输入Redis地址', default: '127.0.0.1', required: true);
-                    $envConfig['REDIS_PORT'] = text(label: '请输入Redis端口', default: '6379', required: true);
-                    $envConfig['REDIS_PASSWORD'] = text(label: '请输入redis密码(默认: null)', default: '');
-                }
-                $redisConfig = [
-                    'client' => 'phpredis',
-                    'default' => [
-                        'host' => $envConfig['REDIS_HOST'],
-                        'password' => $envConfig['REDIS_PASSWORD'],
-                        'port' => $envConfig['REDIS_PORT'],
-                        'database' => 0,
-                    ],
-                ];
-                try {
-                    $redis = new \Illuminate\Redis\RedisManager(app(), 'phpredis', $redisConfig);
-                    $redis->ping();
-                    $isReidsValid = true;
-                } catch (\Exception $e) {
-                    // 连接失败，输出错误消息
-                    $this->error("redis连接失败：" . $e->getMessage());
-                    $this->info("请重新输入REDIS配置");
-                    $enableRedis = false;
-                    sleep(1);
-                }
-            }
+            // $isReidsValid = false;
+            // while (!$isReidsValid) {
+            //     // 判断是否为Docker环境
+            //     if ($isDocker == 'true' && ($enableRedis || confirm(label: '是否启用Docker内置的Redis', default: true, yes: '启用', no: '不启用'))) {
+            //         $envConfig['REDIS_HOST'] = '/data/redis.sock';
+            //         $envConfig['REDIS_PORT'] = 0;
+            //         $envConfig['REDIS_PASSWORD'] = null;
+            //     } else {
+            //         $envConfig['REDIS_HOST'] = text(label: '请输入Redis地址', default: '127.0.0.1', required: true);
+            //         $envConfig['REDIS_PORT'] = text(label: '请输入Redis端口', default: '6379', required: true);
+            //         $envConfig['REDIS_PASSWORD'] = text(label: '请输入redis密码(默认: null)', default: '');
+            //     }
+            //     $redisConfig = [
+            //         'client' => 'phpredis',
+            //         'default' => [
+            //             'host' => $envConfig['REDIS_HOST'],
+            //             'password' => $envConfig['REDIS_PASSWORD'],
+            //             'port' => $envConfig['REDIS_PORT'],
+            //             'database' => 0,
+            //         ],
+            //     ];
+            //     try {
+            //         $redis = new \Illuminate\Redis\RedisManager(app(), 'phpredis', $redisConfig);
+            //         $redis->ping();
+            //         $isReidsValid = true;
+            //     } catch (\Exception $e) {
+            //         // 连接失败，输出错误消息
+            //         $this->error("redis连接失败：" . $e->getMessage());
+            //         $this->info("请重新输入REDIS配置");
+            //         $enableRedis = false;
+            //         sleep(1);
+            //     }
+            // }
 
             if (!copy(base_path() . '/.env.example', base_path() . '/.env')) {
                 abort(500, '复制环境文件失败，请检查目录权限');

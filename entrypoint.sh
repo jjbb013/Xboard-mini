@@ -1,23 +1,39 @@
 #!/bin/sh
 
-# Define the lock file path in the persistent storage
-LOCK_FILE="/app/storage/.installed.lock"
+# Define paths based on the WORKDIR in Dockerfile
+STORAGE_PATH="/www/storage"
+LOCK_FILE="$STORAGE_PATH/.installed.lock"
+ENV_FILE="/www/.env"
+ENV_EXAMPLE_FILE="/www/.env.example"
 
 # Check if the application has been installed
 if [ ! -f "$LOCK_FILE" ]; then
     echo "Application not installed. Starting installation..."
 
-    # Ensure the database file exists
-    mkdir -p /app/storage/database
-    touch /app/storage/database/database.sqlite
-
-    # Generate application key if not set
-    if [ -z "$APP_KEY" ]; then
-        echo "Generating application key..."
-        php artisan key:generate
+    # 1. Create .env file from example
+    if [ -f "$ENV_EXAMPLE_FILE" ]; then
+        echo "Creating .env file..."
+        cp "$ENV_EXAMPLE_FILE" "$ENV_FILE"
+    else
+        echo "Warning: .env.example not found. Skipping .env creation."
     fi
 
-    # Run migrations and initial setup
+    # 2. Generate application key
+    echo "Generating application key..."
+    php artisan key:generate
+
+    # 3. Ensure the database file exists
+    echo "Creating database directory..."
+    mkdir -p "$STORAGE_PATH/database"
+    touch "$STORAGE_PATH/database/database.sqlite"
+
+    # 4. Force clear any cached configurations
+    echo "Clearing caches before migration..."
+    php artisan config:clear
+    php artisan route:clear
+    php artisan view:clear
+
+    # 5. Run migrations and initial setup
     echo "Running database migrations..."
     php artisan cache:table
     php artisan migrate --force
@@ -25,10 +41,11 @@ if [ ! -f "$LOCK_FILE" ]; then
     echo "Installing application..."
     php artisan xboard:install
 
-    echo "Clearing caches..."
+    # 6. Final cache clear
+    echo "Clearing all caches post-installation..."
     php artisan optimize:clear
 
-    # Create the lock file to prevent re-installation
+    # 7. Create the lock file to prevent re-installation
     echo "Installation complete. Creating lock file."
     touch "$LOCK_FILE"
 else

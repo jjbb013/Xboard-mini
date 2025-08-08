@@ -61,3 +61,13 @@
     - **解决方案**: 在 `northflank.yml` 文件中，必须明确指定端口协议为 `HTTP`。
 - **移除 `laravel/horizon`**: Horizon 包强依赖 Redis，已被完全移除。
 - **必须创建 `cache` 表**: `database` 缓存驱动需要 `php artisan cache:table` 命令来创建迁移文件。
+- **部署时初始化失败的连锁反应**:
+    - **问题**: 日志显示 `mkdir: can't create directory '/app/'`, `MissingAppKeyException`, `Connection refused (Connection: mysql)`, `redis连接失败` 等一系列错误。
+    - **根本原因**:
+        1.  **路径不匹配**: `Dockerfile` 的工作目录是 `/www`，但 `northflank.yml` 将存储卷挂载到了 `/app/storage`，导致权限错误和路径混乱。
+        2.  **硬编码的 Redis 检查**: `php artisan xboard:install` 命令中存在硬编码的 Redis 连接逻辑，无视了我们的 `.env` 配置。
+        3.  **配置缓存**: 应用在运行 `migrate` 时加载了错误的 `mysql` 数据库配置，表明配置缓存未被正确清理。
+    - **最终解决方案**:
+        1.  **统一路径**: 将 `northflank.yml` 中的挂载点修改为 `/www/storage`，并更新 `entrypoint.sh` 使用正确的路径。
+        2.  **修复 `entrypoint.sh`**: 增加创建 `.env` 文件、提前清理缓存等步骤，使其更健壮。
+        3.  **修改 `xboard:install` 命令**: 找到该命令的源文件 (`app/Console/Commands/Install.php`)，并注释掉其中硬编码的 Redis 检查逻辑。
