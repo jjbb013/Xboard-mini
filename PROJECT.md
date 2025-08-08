@@ -60,7 +60,10 @@
     - **问题**: Northflank 默认将端口识别为 TCP，导致无法从公网访问。
     - **解决方案**: 在 `northflank.yml` 文件中，必须明确指定端口协议为 `HTTP`。
 - **移除 `laravel/horizon`**: Horizon 包强依赖 Redis，已被完全移除。
-- **必须创建 `cache` 表**: `database` 缓存驱动需要 `php artisan cache:table` 命令来创建迁移文件。
+- **`no such table: cache` 错误的根源**:
+    - **问题**: 日志显示 `no such table: cache`，表明 `cache` 表未被创建。
+    - **原因分析**: `entrypoint.sh` 脚本中使用的 `php artisan cache:table` 命令是非幂等的。它在第一次运行时创建迁移文件，但在后续的部署中，如果文件已存在，该命令会失败并中断初始化流程，导致 `php artisan migrate` 无法执行。
+    - **最终解决方案**: 遵循 Laravel 最佳实践，**手动在 `database/migrations` 目录中创建 `cache` 表的迁移文件**，并将其作为项目源代码的一部分。然后，从 `entrypoint.sh` 脚本中**彻底移除** `php artisan cache:table` 命令。这使得整个初始化过程变得简单、健壮且幂等。
 - **部署时初始化失败的连锁反应**:
     - **问题**: 日志显示 `mkdir: can't create directory '/app/'`, `MissingAppKeyException`, `Connection refused (Connection: mysql)`, `redis连接失败` 等一系列错误。
     - **根本原因**:
@@ -70,4 +73,4 @@
     - **最终解决方案**:
         1.  **统一路径**: 将 `northflank.yml` 中的挂载点修改为 `/www/storage`，并更新 `entrypoint.sh` 使用正确的路径。
         2.  **修复 `entrypoint.sh`**: 增加创建 `.env` 文件、提前清理缓存等步骤，使其更健壮。
-        3.  **修改 `xboard:install` 命令**: 找到该命令的源文件 (`app/Console/Commands/Install.php`)，并注释掉其中硬编码的 Redis 检查逻辑。
+        3.  **修改 `xboard:install` 命令**: 找到该命令的源文件 (`app/Console/Commands/XboardInstall.php`)，并注释掉其中硬编码的 Redis 检查逻辑。

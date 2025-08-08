@@ -35,7 +35,6 @@ if [ ! -f "$LOCK_FILE" ]; then
 
     # 5. Run migrations and initial setup
     echo "Running database migrations..."
-    php artisan cache:table
     php artisan migrate --force
 
     echo "Installing application..."
