@@ -1,0 +1,74 @@
+# Configuring MySQL for Northflank Deployment
+
+This guide explains how to configure Xboard to work with Northflank's MySQL addon.
+
+## Northflank MySQL Environment Variables
+
+When using Northflank's MySQL addon, the following environment variables are provided:
+
+```
+# Connection details for external connections (e.g., from your local machine)
+EXTERNAL_CONNECT_COMMAND: mysql --host=primary.mysql--mj57f6pmr24b.addon.code.run --user=2a93b6663c8690ea --password=2d3baede4e48a5bf8eb09a2632c6bc 7fd31670971e --port 28905
+EXTERNAL_MYSQL_CONNECTOR_URI: server=primary.mysql--mj57f6pmr24b.addon.code.run:28905;uid=2a93b6663c8690ea;password=2d3baede4e48a5bf8eb09a2632c6bc;database=7fd31670971e
+EXTERNAL_MYSQL_JDBC_URI: jdbc:mysql://2a93b6663c8690ea:2d3baede4e48a5bf8eb09a2632c6bc@primary.mysql--mj57f6pmr24b.addon.code.run:28905/7fd31670971e
+
+# Connection details for internal connections (e.g., from your Northflank services)
+CONNECT_COMMAND: mysql --host=primary.mysql--mj57f6pmr24b.addon.code.run --user=2a93b6663c8690ea --password=2d3baede4e48a5bf8eb09a2632c6bc 7fd31670971e
+HOST: primary.mysql--mj57f6pmr24b.addon.code.run
+PORT: 3306
+DATABASE: 7fd31670971e
+USERNAME: 2a93b6663c8690ea
+PASSWORD: 2d3baede4e48a5bf8eb09a2632c6bc
+MYSQL_JDBC_URI: jdbc:mysql://2a93b6663c8690ea:2d3baede4e48a5bf8eb09a2632c6bc@primary.mysql--mj57f6pmr24b.addon.code.run:3306/7fd31670971e
+MYSQL_CONNECTOR_URI: server=primary.mysql--mj57f6pmr24b.addon.code.run:3306;uid=2a93b6663c8690ea;password=2d3baede4e48a5bf8eb09a2632c6bc;database=7fd31670971e
+
+# SSL Configuration
+TLS_ENABLED: true
+```
+
+## Configuring Xboard for Northflank MySQL
+
+To configure Xboard to work with Northflank's MySQL addon, you need to set the following environment variables in your Xboard service:
+
+1. In your Northflank service configuration, add the following environment variables:
+   ```
+   DB_CONNECTION=mysql
+   DB_HOST=primary.mysql--mj57f6pmr24b.addon.code.run
+   DB_PORT=3306
+   DB_DATABASE=7fd31670971e
+   DB_USERNAME=2a93b6663c8690ea
+   DB_PASSWORD=2d3baede4e48a5bf8eb09a2632c6bc
+   DB_SSL_VERIFY_SERVER_CERT=true
+   ```
+
+2. If you need to use a specific SSL certificate, you can also set:
+   ```
+   MYSQL_ATTR_SSL_CA=/path/to/ca-cert.pem
+   ```
+
+## SSL Certificate Verification
+
+Northflank's MySQL addon has TLS enabled. Xboard is configured to verify the server certificate by default. This is the recommended setting for production environments.
+
+If you encounter SSL verification issues, you can disable verification by setting:
+```
+DB_SSL_VERIFY_SERVER_CERT=false
+```
+
+However, this is not recommended for production use as it reduces the security of your database connection.
+
+## Testing the Connection
+
+To test the connection from your Northflank service, you can use the following command in the terminal:
+```bash
+mysql --host=primary.mysql--mj57f6pmr24b.addon.code.run --user=2a93b6663c8690ea --password=2d3baede4e48a5bf8eb09a2632c6bc 7fd31670971e
+```
+
+## Troubleshooting
+
+If you encounter connection issues:
+
+1. Verify that all environment variables are correctly set
+2. Check that your Northflank service has network access to the MySQL addon
+3. Ensure that the MySQL addon is running and healthy
+4. Confirm that the SSL settings are correctly configured

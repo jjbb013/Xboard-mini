@@ -3,8 +3,8 @@ FROM phpswoole/swoole:php8.2-alpine
 # Install necessary PHP extensions and system packages
 COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 
-RUN install-php-extensions pcntl bcmath zip pdo_mysql pdo_sqlite && \
-    apk --no-cache add git mysql-client supervisor
+RUN install-php-extensions pcntl bcmath zip pdo_mysql pdo_sqlite openssl && \
+    apk --no-cache add git mysql-client supervisor ca-certificates
 
 # Set up work directory
 WORKDIR /www
