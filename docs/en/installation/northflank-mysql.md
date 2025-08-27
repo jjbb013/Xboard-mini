@@ -100,6 +100,11 @@ To configure Xboard to work with Northflank's MySQL addon, you need to manually 
    MAIL_ENCRYPTION=null
    MAIL_FROM_ADDRESS=null
    MAIL_FROM_NAME=null
+   
+   # Admin Configuration (Optional)
+   ADMIN_EMAIL=admin@example.com
+   ADMIN_PASSWORD=your_secure_password
+   ADMIN_SECURE_PATH= # Leave empty to use auto-generated path, or set custom path
    ```
 
 2. **Important**: You must manually set the `APP_KEY` as an environment variable in Northflank. You can either:

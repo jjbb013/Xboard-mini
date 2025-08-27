@@ -21,6 +21,18 @@ fi
 echo "Running database migrations..."
 php /www/artisan migrate --force
 
+# Set admin secure path if provided
+if [ -n "$ADMIN_SECURE_PATH" ]; then
+    echo "Setting admin secure path..."
+    php /www/artisan tinker --execute="\\App\\Models\\Setting::updateOrCreate(['key' => 'secure_path'], ['value' => env('ADMIN_SECURE_PATH')]);"
+fi
+
+# Create admin user if credentials are provided
+if [ -n "$ADMIN_EMAIL" ] && [ -n "$ADMIN_PASSWORD" ]; then
+    echo "Creating admin user..."
+    php /www/artisan xboard:create-admin
+fi
+
 # Start Supervisor to run Octane and the queue worker.
 echo "Starting Supervisor..."
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
