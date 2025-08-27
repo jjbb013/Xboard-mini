@@ -28,10 +28,18 @@ TLS_ENABLED: true
 
 ## Configuring Xboard for Northflank MySQL
 
-To configure Xboard to work with Northflank's MySQL addon, you need to set the following environment variables in your Xboard service:
+To configure Xboard to work with Northflank's MySQL addon, you need to manually set the following environment variables in your Xboard service:
 
 1. In your Northflank service configuration, add the following environment variables:
    ```
+   APP_NAME=XBoard
+   APP_ENV=production
+   APP_KEY= # Generate this using `php artisan key:generate --show`
+   APP_DEBUG=false
+   APP_URL=http://localhost
+   
+   LOG_CHANNEL=stack
+   
    DB_CONNECTION=mysql
    DB_HOST=primary.mysql--mj57f6pmr24b.addon.code.run
    DB_PORT=3306
@@ -39,9 +47,25 @@ To configure Xboard to work with Northflank's MySQL addon, you need to set the f
    DB_USERNAME=2a93b6663c8690ea
    DB_PASSWORD=2d3baede4e48a5bf8eb09a2632c6bc
    DB_SSL_VERIFY_SERVER_CERT=true
+   
+   BROADCAST_DRIVER=log
+   CACHE_DRIVER=database
+   QUEUE_CONNECTION=database
+   SESSION_DRIVER=database
+   
+   MAIL_DRIVER=smtp
+   MAIL_HOST=smtp.mailtrap.io
+   MAIL_PORT=2525
+   MAIL_USERNAME=null
+   MAIL_PASSWORD=null
+   MAIL_ENCRYPTION=null
+   MAIL_FROM_ADDRESS=null
+   MAIL_FROM_NAME=null
    ```
 
-2. If you need to use a specific SSL certificate, you can also set:
+2. **Important**: You must manually generate the `APP_KEY` using the command `php artisan key:generate --show` and set it as an environment variable. The application will not start without this key.
+
+3. If you need to use a specific SSL certificate, you can also set:
    ```
    MYSQL_ATTR_SSL_CA=/path/to/ca-cert.pem
    ```
