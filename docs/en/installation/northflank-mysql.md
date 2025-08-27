@@ -30,7 +30,9 @@ TLS_ENABLED: true
 
 To configure Xboard to work with Northflank's MySQL addon, you need to manually set the following environment variables in your Xboard service:
 
-1. In your Northflank service configuration, add the following environment variables:
+1. In your Northflank service configuration, you can use either the standard Laravel environment variables or the Northflank-specific variables that are automatically provided:
+
+   **Option A - Using standard Laravel variables:**
    ```
    APP_NAME=XBoard
    APP_ENV=production
@@ -41,11 +43,47 @@ To configure Xboard to work with Northflank's MySQL addon, you need to manually 
    LOG_CHANNEL=stack
    
    DB_CONNECTION=mysql
-   DB_HOST=primary.mysql--mj57f6pmr24b.addon.code.run
+   DB_HOST=primary.mysql--m2cwcvt4zs8p.addon.code.run
    DB_PORT=3306
-   DB_DATABASE=7fd31670971e
-   DB_USERNAME=2a93b6663c8690ea
-   DB_PASSWORD=2d3baede4e48a5bf8eb09a2632c6bc
+   DB_DATABASE=4253b11c37b7
+   DB_USERNAME=926fc090d2189763
+   DB_PASSWORD=e5d90badf402f0d81cc77b7790766f
+   DB_SSL_VERIFY_SERVER_CERT=true
+   
+   BROADCAST_DRIVER=log
+   CACHE_DRIVER=database
+   QUEUE_CONNECTION=database
+   SESSION_DRIVER=database
+   
+   MAIL_DRIVER=smtp
+   MAIL_HOST=smtp.mailtrap.io
+   MAIL_PORT=2525
+   MAIL_USERNAME=null
+   MAIL_PASSWORD=null
+   MAIL_ENCRYPTION=null
+   MAIL_FROM_ADDRESS=null
+   MAIL_FROM_NAME=null
+   ```
+
+   **Option B - Using Northflank automatic variables (recommended):**
+   If you're using Northflank's MySQL addon, the platform automatically provides the following variables:
+   - `NF_MYSQL_HOST`
+   - `NF_MYSQL_DATABASE`
+   - `NF_MYSQL_USERNAME`
+   - `NF_MYSQL_PASSWORD`
+   
+   In this case, you only need to add these additional variables:
+   ```
+   APP_NAME=XBoard
+   APP_ENV=production
+   APP_KEY= # Generate this using `php artisan key:generate --show`
+   APP_DEBUG=false
+   APP_URL=http://localhost
+   
+   LOG_CHANNEL=stack
+   
+   DB_CONNECTION=mysql
+   DB_PORT=3306
    DB_SSL_VERIFY_SERVER_CERT=true
    
    BROADCAST_DRIVER=log
