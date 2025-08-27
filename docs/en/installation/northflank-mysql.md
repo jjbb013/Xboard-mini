@@ -85,6 +85,7 @@ To configure Xboard to work with Northflank's MySQL addon, you need to manually 
    DB_CONNECTION=mysql
    DB_PORT=3306
    DB_SSL_VERIFY_SERVER_CERT=true
+   DB_SSL_CIPHER=DHE-RSA-AES256-SHA:AES128-SHA
    
    BROADCAST_DRIVER=log
    CACHE_DRIVER=database
