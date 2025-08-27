@@ -173,6 +173,6 @@ docker compose up -d
 
 ## Important Notes
 
-- ⚠️ Ensure firewall is enabled to prevent port 7001 exposure to public
+- ⚠️ Ensure firewall is enabled to prevent port 8080 exposure to public
 - Service restart is required after code modifications
 - SSL certificate configuration is recommended for secure access 

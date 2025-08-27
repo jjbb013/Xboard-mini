@@ -27,7 +27,7 @@ RUN chmod -R 777 /www/storage && \
     chmod -R 777 /www/bootstrap/cache
 
 # Expose port for Octane
-EXPOSE 7002
+EXPOSE 8080
 
 # Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

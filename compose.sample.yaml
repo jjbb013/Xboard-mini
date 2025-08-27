@@ -6,8 +6,8 @@ services:
     environment:
       - docker=true
     ports:
-      - "7002:7002"
-    command: php artisan octane:start --port=7002 --host=0.0.0.0
+      - "8080:8080"
+    command: php artisan octane:start --port=8080 --host=0.0.0.0
     restart: always
   queue:
     image: ghcr.io/cedar2025/xboard:new

@@ -43,8 +43,8 @@ docker compose up -d
 ```
 
 4. Access the site:
-- Default port: 7001
-- Website URL: http://your-server-ip:7001
+- Default port: 8080
+- Website URL: http://your-server-ip:8080
 
 ### 3. Version Updates
 
