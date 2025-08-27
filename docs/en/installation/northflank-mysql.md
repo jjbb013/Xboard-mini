@@ -63,7 +63,11 @@ To configure Xboard to work with Northflank's MySQL addon, you need to manually 
    MAIL_FROM_NAME=null
    ```
 
-2. **Important**: You must manually generate the `APP_KEY` using the command `php artisan key:generate --show` and set it as an environment variable. The application will not start without this key.
+2. **Important**: You must manually set the `APP_KEY` as an environment variable in Northflank. You can either:
+   - Generate it using the command `php artisan key:generate --show` and copy the value, or
+   - Create your own 32-character random string prefixed with `base64:` (e.g., `base64:your-32-char-random-string-here`)
+   
+   The application will not start without this key.
 
 3. If you need to use a specific SSL certificate, you can also set:
    ```
