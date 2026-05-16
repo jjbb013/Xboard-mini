@@ -40,8 +40,6 @@ class Kernel extends ConsoleKernel
         $schedule->command('reset:log')->daily()->onOneServer();
         // send
         $schedule->command('send:remindMail', ['--force'])->dailyAt('11:30')->onOneServer();
-        // horizon metrics
-        $schedule->command('horizon:snapshot')->everyFiveMinutes()->onOneServer();
         // backup Timing
         // if (env('ENABLE_AUTO_BACKUP_AND_UPDATE', false)) {
         //     $schedule->command('backup:database', ['true'])->daily()->onOneServer();
