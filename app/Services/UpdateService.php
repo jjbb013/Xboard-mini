@@ -34,23 +34,50 @@ class UpdateService
      */
     public function updateVersionCache(): void
     {
+        if (!$this->isGitAvailable()) {
+            $this->setFallbackVersionCache();
+            return;
+        }
+
         try {
             $result = Process::run('git log -1 --format=%cd:%H --date=format:%Y%m%d');
             if ($result->successful()) {
                 list($date, $hash) = explode(':', trim($result->output()));
                 Cache::forever(self::CACHE_VERSION_DATE, $date);
                 Cache::forever(self::CACHE_VERSION, substr($hash, 0, 7));
-                // Log::info('Version cache updated: ' . $date . '-' . substr($hash, 0, 7));
                 return;
             }
         } catch (\Exception $e) {
-            Log::error('Failed to get version with date: ' . $e->getMessage());
+            // Silently fall back to avoid spamming logs in container environments
         }
 
-        // Fallback
+        $this->setFallbackVersionCache();
+    }
+
+    /**
+     * Set fallback version cache without git
+     */
+    protected function setFallbackVersionCache(): void
+    {
         Cache::forever(self::CACHE_VERSION_DATE, date('Ymd'));
-        Cache::forever(self::CACHE_VERSION, $this->getCurrentCommit());
-        Log::info('Version cache updated (fallback): ' . date('Ymd') . '-' . $this->getCurrentCommit());
+        Cache::forever(self::CACHE_VERSION, 'unknown');
+    }
+
+    /**
+     * Check if git is available in the current environment
+     */
+    protected function isGitAvailable(): bool
+    {
+        if (!is_dir(base_path('.git'))) {
+            return false;
+        }
+
+        try {
+            $result = Process::run('git --version');
+            return $result->successful();
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     public function checkForUpdates(): array
@@ -253,6 +280,10 @@ class UpdateService
 
     protected function getCurrentCommit(): string
     {
+        if (!$this->isGitAvailable()) {
+            return 'unknown';
+        }
+
         try {
             // Ensure git configuration is correct
             Process::run(sprintf('git config --global --add safe.directory %s', base_path()));
@@ -260,7 +291,6 @@ class UpdateService
             $fullHash = trim($result->output());
             return $fullHash ? $this->formatCommitHash($fullHash) : 'unknown';
         } catch (\Exception $e) {
-            Log::error('Failed to get current commit: ' . $e->getMessage());
             return 'unknown';
         }
     }

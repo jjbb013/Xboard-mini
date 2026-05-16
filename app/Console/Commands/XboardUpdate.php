@@ -57,7 +57,6 @@ class XboardUpdate extends Command
         $updateService->updateVersionCache();
         $themeService = app(ThemeService::class);
         $themeService->refreshCurrentTheme();
-        Artisan::call('horizon:terminate');
-        $this->info('更新完毕，队列服务已重启，你无需进行任何操作。');
+        $this->info('更新完毕');
     }
 }

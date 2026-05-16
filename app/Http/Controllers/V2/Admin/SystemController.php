@@ -55,7 +55,43 @@ class SystemController extends Controller
 
     public function getQueueStats()
     {
-        return $this->success([]);
+        try {
+            $pendingJobs = \DB::table('jobs')->count();
+            $failedJobs = \DB::table('failed_jobs')->count();
+            $recentProcessed = \DB::table('jobs')
+                ->whereNotNull('reserved_at')
+                ->where('reserved_at', '>=', time() - 3600)
+                ->count();
+
+            return $this->success([
+                'status' => 'running',
+                'pending_jobs' => $pendingJobs,
+                'failed_jobs' => $failedJobs,
+                'recent_processed' => $recentProcessed,
+                'wait_time' => 0,
+                'active_processes' => $recentProcessed > 0 ? '1 / 1' : '0 / 0',
+                'recent_tasks' => $recentProcessed,
+                'throughput' => $recentProcessed,
+                'retention_hours' => 0,
+                'longest_running' => '0s',
+                'current_time' => date('Y-m-d H:i:s')
+            ]);
+        } catch (\Exception $e) {
+            return $this->success([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'pending_jobs' => 0,
+                'failed_jobs' => 0,
+                'recent_processed' => 0,
+                'wait_time' => 0,
+                'active_processes' => '0 / 0',
+                'recent_tasks' => 0,
+                'throughput' => 0,
+                'retention_hours' => 0,
+                'longest_running' => 'N/A',
+                'current_time' => date('Y-m-d H:i:s')
+            ]);
+        }
     }
 
     public function getSystemLog(Request $request)
