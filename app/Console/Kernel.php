@@ -44,6 +44,12 @@ class Kernel extends ConsoleKernel
         // if (env('ENABLE_AUTO_BACKUP_AND_UPDATE', false)) {
         //     $schedule->command('backup:database', ['true'])->daily()->onOneServer();
         // }
+        // queue worker for environments without persistent process support (e.g. NorthFrank free tier)
+        $schedule->command('queue:work', ['--max-time' => 55, '--stop-when-empty' => true, '--max-jobs' => 50, '--sleep' => 3])
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->onOneServer();
+
         // 每分钟清理过期的在线状态
         $schedule->call(function () {
             app(UserOnlineService::class)->cleanExpiredOnlineStatus();
