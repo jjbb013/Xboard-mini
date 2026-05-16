@@ -45,7 +45,7 @@ class Kernel extends ConsoleKernel
         //     $schedule->command('backup:database', ['true'])->daily()->onOneServer();
         // }
         // queue worker for environments without persistent process support (e.g. NorthFrank free tier)
-        $schedule->command('queue:work', ['--max-time' => 55, '--stop-when-empty' => true, '--max-jobs' => 50, '--sleep' => 3])
+        $schedule->command('queue:work', ['--max-time' => 55, '--stop-when-empty', '--max-jobs' => 50, '--sleep' => 3])
             ->everyMinute()
             ->withoutOverlapping()
             ->onOneServer();
