@@ -118,6 +118,15 @@ class ThemeService
                 throw new Exception('Theme config file not found');
             }
 
+            // 安全检查：防止 ZIP 路径遍历攻击
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $entryName = $zip->getNameIndex($i);
+                if (str_contains($entryName, '..') || str_starts_with($entryName, '/')) {
+                    $zip->close();
+                    throw new Exception('Invalid theme package: path traversal detected');
+                }
+            }
+
             $zip->extractTo($tmpPath);
             $zip->close();
 

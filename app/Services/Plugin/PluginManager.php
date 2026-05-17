@@ -492,6 +492,15 @@ class PluginManager
             throw new \Exception('无法打开插件包文件');
         }
 
+        // 安全检查：防止 ZIP 路径遍历攻击
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $entryName = $zip->getNameIndex($i);
+            if (str_contains($entryName, '..') || str_starts_with($entryName, '/')) {
+                $zip->close();
+                throw new \Exception('Invalid plugin package: path traversal detected');
+            }
+        }
+
         $zip->extractTo($extractPath);
         $zip->close();
 
