@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xboard-mini 项目深度审查报告</title>
+    <style>
+        :root {
+            --bg: #f6f8fa;
+            --card: #ffffff;
+            --text: #1f2328;
+            --text-secondary: #656d76;
+            --border: #d0d7de;
+            --critical: #cf222e;
+            --critical-bg: #ffebe9;
+            --high: #bc4c00;
+            --high-bg: #fff5e6;
+            --medium: #9a6700;
+            --medium-bg: #fff8c5;
+            --low: #0969da;
+            --low-bg: #ddf4ff;
+            --success: #1a7f37;
+            --success-bg: #dafbe1;
+            --code: #f6f8fa;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 0 0 8px;
+        }
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 16px;
+            margin-bottom: 32px;
+        }
+        .meta {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            margin-bottom: 32px;
+            padding: 16px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .meta-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .meta-value {
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+        .section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        .section-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .section-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+            flex: 1;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-critical { background: var(--critical-bg); color: var(--critical); }
+        .badge-high { background: var(--high-bg); color: var(--high); }
+        .badge-medium { background: var(--medium-bg); color: var(--medium); }
+        .badge-low { background: var(--low-bg); color: var(--low); }
+        .badge-success { background: var(--success-bg); color: var(--success); }
+        .section-body {
+            padding: 20px 24px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th {
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 2px solid var(--border);
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f6f8fa; }
+        .severity {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        .severity::before {
+            content: "";
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .sev-critical { color: var(--critical); }
+        .sev-critical::before { background: var(--critical); }
+        .sev-high { color: var(--high); }
+        .sev-high::before { background: var(--high); }
+        .sev-medium { color: var(--medium); }
+        .sev-medium::before { background: var(--medium); }
+        .sev-low { color: var(--low); }
+        .sev-low::before { background: var(--low); }
+        .file-path {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 13px;
+            background: var(--code);
+            padding: 2px 6px;
+            border-radius: 4px;
+            word-break: break-all;
+        }
+        .action-delete { color: var(--critical); font-weight: 600; }
+        .action-merge { color: var(--high); font-weight: 600; }
+        .action-keep { color: var(--success); font-weight: 600; }
+        .action-review { color: var(--medium); font-weight: 600; }
+        .action-update { color: var(--low); font-weight: 600; }
+        .roadmap {
+            display: grid;
+            gap: 16px;
+        }
+        .phase {
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        .phase-1 { background: #ffebe9; border-color: var(--critical); }
+        .phase-2 { background: #fff5e6; border-color: var(--high); }
+        .phase-3 { background: #ddf4ff; border-color: var(--low); }
+        .phase-title {
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        .phase-1 .phase-title { color: var(--critical); }
+        .phase-2 .phase-title { color: var(--high); }
+        .phase-3 .phase-title { color: var(--low); }
+        .phase ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .phase li {
+            margin-bottom: 6px;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+        }
+        .feature-card {
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--code);
+        }
+        .feature-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+        .feature-meta {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .feature-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .toc {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+        }
+        .toc h3 {
+            margin: 0 0 12px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .toc ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+        .toc li {
+            margin-bottom: 6px;
+        }
+        .toc a {
+            color: var(--text);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .toc a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Xboard-mini 项目深度审查报告</h1>
+        <p class="subtitle">基于 fix/northfrank-stability 分支的全面代码审查 — 文件清理、安全漏洞、功能建议</p>
+
+        <div class="meta">
+            <div class="meta-item">
+                <span class="meta-label">项目</span>
+                <span class="meta-value">Xboard-mini</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">分支</span>
+                <span class="meta-value">fix/northfrank-stability</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">环境</span>
+                <span class="meta-value">NorthFrank Free Tier + MySQL</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">发现漏洞</span>
+                <span class="meta-value">1 Critical + 4 High + 9 Medium + 4 Low</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">可清理文件</span>
+                <span class="meta-value">15+ 个文件/目录</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">功能建议</span>
+                <span class="meta-value">20+ 项</span>
+            </div>
+        </div>
+
+        <div class="toc">
+            <h3>📑 目录</h3>
+            <ul>
+                <li><a href="#cleanup">一、文件清理建议</a></li>
+                <li><a href="#security">二、安全漏洞与修复</a></li>
+                <li><a href="#features">三、功能与 API 建议</a></li>
+                <li><a href="#roadmap">四、执行路线图</a></li>
+            </ul>
+        </div>
+
+        <!-- 第一部分：文件清理 -->
+        <div class="section" id="cleanup">
+            <div class="section-header">
+                <h2>一、文件清理建议</h2>
+                <span class="badge badge-medium">可节省 ~6.5MB+ 空间</span>
+            </div>
+            <div class="section-body">
+                <h3 style="margin-top:0;font-size:16px;">1.1 根目录工作笔记（高度重复）</h3>
+                <table>
+                    <thead>
+                        <tr><th>文件</th><th>建议</th><th>原因</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="file-path">测试和故障排查.md</span></td>
+                            <td><span class="action-delete">删除</span></td>
+                            <td>与 <span class="file-path">测试和故障排-查.md</span> 是同一文件，仅文件名差一个连字符</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">测试和故障排-查.md</span></td>
+                            <td><span class="action-merge">合并后删除</span></td>
+                            <td>较完整的版本，但属于 Redis 移除的开发笔记，工作已完成</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">修改计划.md</span></td>
+                            <td><span class="action-delete">删除</span></td>
+                            <td>Redis 移除的策划笔记，工作已完成</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">复核记录.md</span></td>
+                            <td><span class="action-delete">删除</span></td>
+                            <td>Redis 移除的验证笔记，工作已完成</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">行动记录.md</span></td>
+                            <td><span class="action-delete">删除</span></td>
+                            <td>Redis 移除的执行日志，工作已完成</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">部署流程.md</span></td>
+                            <td><span class="action-merge">合并到 docs/ 后删除</span></td>
+                            <td>NorthFrank 部署指南有价值，但不该放在根目录</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 style="font-size:16px;margin-top:24px;">1.2 死代码与废弃脚手架</h3>
+                <table>
+                    <thead>
+                        <tr><th>文件/目录</th><th>建议</th><th>原因</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="file-path">resources/js/app.js</span> + <span class="file-path">resources/js/bootstrap.js</span></td>
+                            <td><span class="action-delete">删除</span></td>
+                            <td>Laravel 默认脚手架，项目无构建工具（无 webpack/vite），从未使用</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">resources/sass/app.scss</span></td>
+                            <td><span class="action-delete">删除</span></td>
+                            <td>只有 <code>//</code> 注释，空文件</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">app/Console/Commands/Test.php</span></td>
+                            <td><span class="action-delete">删除</span></td>
+                            <td><code>handle()</code> 为空，无描述，纯占位符</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">config/scribe.php</span></td>
+                            <td><span class="action-delete">删除</span></td>
+                            <td>Scribe 包不在 <code>composer.json</code> 中，孤儿配置（~12KB）</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">config/theme/</span> 目录</td>
+                            <td><span class="action-delete">删除</span></td>
+                            <td>只有 <code>.gitignore</code>，无实际配置</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">.docker/.data/redis/</span> 目录</td>
+                            <td><span class="action-delete">删除</span></td>
+                            <td>Redis 服务已移除，数据目录废弃</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">public/web.config</span></td>
+                            <td><span class="action-delete">删除</span></td>
+                            <td>IIS 重写规则，项目运行 Linux/Docker</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">database/factories/UserFactory.php</span></td>
+                            <td><span class="action-delete">可选删除</span></td>
+                            <td>无测试套件，从未引用</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">.opencode/</span> 目录</td>
+                            <td><span class="action-delete">删除</span></td>
+                            <td>本地 AI 工具缓存（6.5MB），已在 <code>.gitignore</code> 中，但占用磁盘空间</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 style="font-size:16px;margin-top:24px;">1.3 待验证项</h3>
+                <table>
+                    <thead>
+                        <tr><th>文件</th><th>建议</th><th>原因</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="file-path">app/Observers/UserObserver.php</span></td>
+                            <td><span class="action-review">确认后删除</span></td>
+                            <td>项目中唯一的 Observer，但在 <code>AppServiceProvider</code> 中未注册</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">app/Contracts/PaymentInterface.php</span></td>
+                            <td><span class="action-merge">可选合并</span></td>
+                            <td>仅 10 行，可移至 <code>app/Services/Plugin/</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 style="font-size:16px;margin-top:24px;">1.4 过时文档</h3>
+                <table>
+                    <thead>
+                        <tr><th>文件</th><th>问题</th><th>建议</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="file-path">docs/en/installation/1panel.md</span></td>
+                            <td>仍包含 <code>redis</code> 服务配置</td>
+                            <td><span class="action-update">更新</span> 移除 Redis 引用</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">docs/en/installation/aapanel.md</span></td>
+                            <td>列出 Redis 为必需组件</td>
+                            <td><span class="action-update">更新</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">docs/en/installation/docker-compose.md</span></td>
+                            <td>提到 <code>ENABLE_REDIS=true</code></td>
+                            <td><span class="action-update">更新</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">docs/en/development/performance.md</span></td>
+                            <td>推荐 Redis 7.0</td>
+                            <td><span class="action-update">更新</span> 改为 SQLite/DB 优化方案</td>
+                        </tr>
+                        <tr>
+                            <td><span class="file-path">docs/en/development/device-limit.md</span></td>
+                            <td>代码示例使用 <code>Redis::hset</code></td>
+                            <td><span class="action-update">更新</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 第二部分：安全漏洞 -->
+        <div class="section" id="security">
+            <div class="section-header">
+                <h2>二、安全漏洞与修复</h2>
+                <span class="badge badge-critical">1 Critical</span>
+                <span class="badge badge-high">4 High</span>
+                <span class="badge badge-medium">9 Medium</span>
+                <span class="badge badge-low">4 Low</span>
+            </div>
+            <div class="section-body">
+                <h3 style="margin-top:0;font-size:16px;">2.1 批量赋值（Mass Assignment）</h3>
+                <table>
+                    <thead>
+                        <tr><th>严重程度</th><th>文件</th><th>问题描述</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="severity sev-critical">Critical</span></td>
+                            <td><span class="file-path">app/Models/Setting.php</span></td>
+                            <td><code>$guarded = []</code> — 所有字段都可批量赋值，包括支付密钥、邮箱密码等敏感配置</td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-high">High</span></td>
+                            <td><span class="file-path">app/Models/User.php</span></td>
+                            <td><code>$guarded = ['id']</code> — <code>is_admin</code>, <code>balance</code>, <code>transfer_enable</code>, <code>password</code> 等敏感字段暴露</td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-medium">Medium</span></td>
+                            <td><span class="file-path">app/Models/Plugin.php</span></td>
+                            <td><code>$guarded = ['id', 'created_at', 'updated_at']</code> — <code>is_enabled</code>, <code>config</code> 可批量赋值</td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-medium">Medium</span></td>
+                            <td><span class="file-path">多个模型</span></td>
+                            <td>Order, Server, Coupon, Ticket 等均只保护 <code>id</code>，敏感字段开放</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 style="font-size:16px;margin-top:24px;">2.2 SQL 注入</h3>
+                <table>
+                    <thead>
+                        <tr><th>严重程度</th><th>文件</th><th>行</th><th>问题描述</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="severity sev-high">High</span></td>
+                            <td><span class="file-path">app/Http/Controllers/V2/Admin/UserController.php</span></td>
+                            <td>144</td>
+                            <td><code>orderBy($field, $direction)</code> 的 <code>$field</code> 来自用户输入，Laravel 不转义列名</td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-high">High</span></td>
+                            <td><span class="file-path">app/Http/Controllers/V2/Admin/OrderController.php</span></td>
+                            <td>139</td>
+                            <td>同上，<code>orderBy()</code> SQL 注入</td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-medium">Medium</span></td>
+                            <td><span class="file-path">app/Http/Controllers/V2/Admin/TicketController.php</span></td>
+                            <td>33</td>
+                            <td><code>orderBy($key, $value)</code> 用户控制 <code>$key</code></td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-medium">Medium</span></td>
+                            <td><span class="file-path">app/Http/Controllers/V2/Admin/CouponController.php</span></td>
+                            <td>36</td>
+                            <td>同上</td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-low">Low</span></td>
+                            <td><span class="file-path">app/Services/StatisticalService.php</span></td>
+                            <td>94-95</td>
+                            <td><code>DB::raw("u + {$u}")</code> 直接拼接变量</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 style="font-size:16px;margin-top:24px;">2.3 敏感信息泄露</h3>
+                <table>
+                    <thead>
+                        <tr><th>严重程度</th><th>文件</th><th>行</th><th>问题描述</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="severity sev-high">High</span></td>
+                            <td><span class="file-path">app/Http/Controllers/V2/Admin/ConfigController.php</span></td>
+                            <td>166</td>
+                            <td>Admin API 明文返回 <code>email_password</code>（SMTP 密码）</td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-high">High</span></td>
+                            <td><span class="file-path">app/Http/Controllers/V2/Admin/ConfigController.php</span></td>
+                            <td>173</td>
+                            <td>明文返回 <code>telegram_bot_token</code></td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-high">High</span></td>
+                            <td><span class="file-path">app/Http/Controllers/V2/Admin/ConfigController.php</span></td>
+                            <td>195</td>
+                            <td>明文返回 <code>recaptcha_v3_secret_key</code></td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-high">High</span></td>
+                            <td><span class="file-path">app/Http/Controllers/V2/Admin/ConfigController.php</span></td>
+                            <td>198</td>
+                            <td>明文返回 <code>turnstile_secret_key</code></td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-medium">Medium</span></td>
+                            <td><span class="file-path">app/Models/User.php</span></td>
+                            <td>79</td>
+                            <td><code>$hidden</code> 只隐藏 <code>password</code>，<code>token</code>、<code>uuid</code>、<code>password_algo</code>、<code>password_salt</code> 在 API 中暴露</td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-medium">Medium</span></td>
+                            <td><span class="file-path">app/Http/Controllers/V2/Admin/UserController.php</span></td>
+                            <td>185</td>
+                            <td>Admin 用户列表返回 <code>token</code> 字段</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 style="font-size:16px;margin-top:24px;">2.4 文件上传漏洞</h3>
+                <table>
+                    <thead>
+                        <tr><th>严重程度</th><th>文件</th><th>行</th><th>问题描述</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="severity sev-medium">Medium</span></td>
+                            <td><span class="file-path">app/Services/ThemeService.php</span></td>
+                            <td>121</td>
+                            <td><code>ZipArchive::extractTo()</code> 未校验路径遍历（<code>../</code>），恶意 ZIP 可写任意文件</td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-medium">Medium</span></td>
+                            <td><span class="file-path">app/Services/Plugin/PluginManager.php</span></td>
+                            <td>495</td>
+                            <td>同上，插件 ZIP 解压无路径校验</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 style="font-size:16px;margin-top:24px;">2.5 认证授权与日志泄露</h3>
+                <table>
+                    <thead>
+                        <tr><th>严重程度</th><th>文件</th><th>行</th><th>问题描述</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="severity sev-medium">Medium</span></td>
+                            <td><span class="file-path">app/Http/Middleware/Client.php</span></td>
+                            <td>25</td>
+                            <td>订阅 token 是静态单字段，无过期/轮换/频率限制，且 token 在多处 API 暴露</td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-medium">Medium</span></td>
+                            <td><span class="file-path">app/Http/Middleware/Admin.php</span></td>
+                            <td>24</td>
+                            <td><code>is_admin</code> 可被批量赋值（结合 Mass Assignment 可提权）</td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-low">Low</span></td>
+                            <td><span class="file-path">多处控制器</span></td>
+                            <td>—</td>
+                            <td><code>Log::error($e)</code> 记录完整异常堆栈，暴露文件路径和代码结构</td>
+                        </tr>
+                        <tr>
+                            <td><span class="severity sev-low">Low</span></td>
+                            <td><span class="file-path">.env.example</span></td>
+                            <td>2</td>
+                            <td>默认 <code>APP_ENV=local</code>，直接复制到生产会开启调试模式</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 第三部分：功能建议 -->
+        <div class="section" id="features">
+            <div class="section-header">
+                <h2>三、功能与 API 建议</h2>
+                <span class="badge badge-success">20+ 项</span>
+            </div>
+            <div class="section-body">
+                <h3 style="margin-top:0;font-size:16px;">3.1 高价值 / 低复杂度（推荐优先）</h3>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-title">🏥 健康检查端点 /api/v1/health</div>
+                        <div class="feature-meta">
+                            <span class="badge badge-low">Low</span>
+                            <span class="badge badge-high">High Value</span>
+                        </div>
+                        <div class="feature-desc">返回 DB 连接、队列状态、调度心跳、磁盘空间，供 NorthFrank 监控和负载均衡使用</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">🗄️ SQLite 优化与告警</div>
+                        <div class="feature-meta">
+                            <span class="badge badge-low">Low</span>
+                            <span class="badge badge-high">High Value</span>
+                        </div>
+                        <div class="feature-desc">定时执行 PRAGMA optimize，DB 文件超阈值时告警，建议 VACUUM 时机</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">🔒 Admin IP 白名单</div>
+                        <div class="feature-meta">
+                            <span class="badge badge-low">Low</span>
+                            <span class="badge badge-high">High Value</span>
+                        </div>
+                        <div class="feature-desc">在 Admin 中间件层拦截非白名单 IP，简单代码改动，安全收益极大</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">🧹 数据库清理命令套件</div>
+                        <div class="feature-meta">
+                            <span class="badge badge-low">Low</span>
+                            <span class="badge badge-high">High Value</span>
+                        </div>
+                        <div class="feature-desc">cleanup:old-stats、cleanup:inactive-users 等，均支持 dry-run 模式</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">📋 仪表盘待办 Widget</div>
+                        <div class="feature-meta">
+                            <span class="badge badge-low">Low</span>
+                            <span class="badge badge-medium">Medium Value</span>
+                        </div>
+                        <div class="feature-desc">汇总待处理工单、超时订单、离线节点、即将过期用户</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">🔑 用户登录历史</div>
+                        <div class="feature-meta">
+                            <span class="badge badge-low">Low</span>
+                            <span class="badge badge-high">High Value</span>
+                        </div>
+                        <div class="feature-desc">记录登录 IP、UA、时间，用户可查看，发现可疑登录</div>
+                    </div>
+                </div>
+
+                <h3 style="font-size:16px;margin-top:24px;">3.2 高价值 / 中等复杂度</h3>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-title">🔔 Webhook 系统</div>
+                        <div class="feature-meta">
+                            <span class="badge badge-medium">Medium</span>
+                            <span class="badge badge-high">High Value</span>
+                        </div>
+                        <div class="feature-desc">可配置 HTTP webhook（用户注册、订单支付、工单创建），带 HMAC 签名验证</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">📜 审计日志</div>
+                        <div class="feature-meta">
+                            <span class="badge badge-medium">Medium</span>
+                            <span class="badge badge-high">High Value</span>
+                        </div>
+                        <div class="feature-desc">记录所有 Admin 修改操作（谁在什么时间改了什么），支持筛选查询</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">🔐 2FA / TOTP</div>
+                        <div class="feature-meta">
+                            <span class="badge badge-medium">Medium</span>
+                            <span class="badge badge-high">High Value</span>
+                        </div>
+                        <div class="feature-desc">用户和管理员均可启用 TOTP，Admin 可强制要求管理员开启</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">📊 Prometheus Metrics</div>
+                        <div class="feature-meta">
+                            <span class="badge badge-medium">Medium</span>
+                            <span class="badge badge-high">High Value</span>
+                        </div>
+                        <div class="feature-desc">/metrics 端点输出 Prometheus 格式指标，对接 Grafana 监控</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">⚡ 异常流量告警</div>
+                        <div class="feature-meta">
+                            <span class="badge badge-medium">Medium</span>
+                            <span class="badge badge-high">High Value</span>
+                        </div>
+                        <div class="feature-desc">检测用户/节点流量突增（&gt;5x 平均值），Admin 面板标红或发通知</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">💳 支付 Webhook 投递日志</div>
+                        <div class="feature-meta">
+                            <span class="badge badge-medium">Medium</span>
+                            <span class="badge badge-high">High Value</span>
+                        </div>
+                        <div class="feature-desc">可视化查看各支付网关的 webhook 请求/响应/重试状态</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">🛡️ 全局 API 限流</div>
+                        <div class="feature-meta">
+                            <span class="badge badge-medium">Medium</span>
+                            <span class="badge badge-high">High Value</span>
+                        </div>
+                        <div class="feature-desc">基于 Laravel RateLimiter，按用户/IP 限制订阅、下单等接口频率</div>
+                    </div>
+                </div>
+
+                <h3 style="font-size:16px;margin-top:24px;">3.3 其他有价值的方向</h3>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-title">📦 批量节点操作 API</div>
+                        <div class="feature-meta"><span class="badge badge-low">Low</span> <span class="badge badge-medium">Medium</span></div>
+                        <div class="feature-desc">批量启用/禁用节点、批量修改分组、正则批量替换 host</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">☁️ S3 兼容自动备份</div>
+                        <div class="feature-meta"><span class="badge badge-medium">Medium</span> <span class="badge badge-high">High</span></div>
+                        <div class="feature-desc">复活 backup:database 命令，支持 R2/B2，配置保留策略和加密</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">⚙️ 配置导入/导出</div>
+                        <div class="feature-meta"><span class="badge badge-low">Low</span> <span class="badge badge-medium">Medium</span></div>
+                        <div class="feature-desc">JSON 格式导出所有设置/套餐/节点/知识库，支持迁移和灾难恢复</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">⏸️ 订阅暂停/冻结</div>
+                        <div class="feature-meta"><span class="badge badge-medium">Medium</span> <span class="badge badge-medium">Medium</span></div>
+                        <div class="feature-desc">用户可申请暂停套餐（如假期模式），到期日顺延</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">🌍 GeoIP 国家访问控制</div>
+                        <div class="feature-meta"><span class="badge badge-medium">Medium</span> <span class="badge badge-medium">Medium</span></div>
+                        <div class="feature-desc">按国家放行/拦截注册或订阅，减少滥用</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-title">🔏 敏感配置加密存储</div>
+                        <div class="feature-meta"><span class="badge badge-low">Low</span> <span class="badge badge-medium">Medium</span></div>
+                        <div class="feature-desc">支付密钥、邮箱密码、Telegram Token 入库时加密，运行时解密</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第四部分：执行路线图 -->
+        <div class="section" id="roadmap">
+            <div class="section-header">
+                <h2>四、执行路线图</h2>
+                <span class="badge badge-critical">安全优先</span>
+            </div>
+            <div class="section-body">
+                <div class="roadmap">
+                    <div class="phase phase-1">
+                        <div class="phase-title">🚨 第一阶段：安全修复（立即执行）</div>
+                        <ul>
+                            <li>修复 Mass Assignment（<code>$guarded</code> → <code>$fillable</code> 白名单）</li>
+                            <li>修复 <code>orderBy</code> SQL 注入（字段白名单校验）</li>
+                            <li>修复敏感信息泄露（Config API 脱敏、User <code>$hidden</code> 补充）</li>
+                            <li>修复 ZIP 路径遍历（主题/插件上传前校验条目）</li>
+                        </ul>
+                    </div>
+                    <div class="phase phase-2">
+                        <div class="phase-title">🧹 第二阶段：文件清理（本周内）</div>
+                        <ul>
+                            <li>删除根目录 6 个开发笔记 markdown</li>
+                            <li>删除死代码（resources/js、sass、Test 命令、scribe 配置等）</li>
+                            <li>更新过时文档中的 Redis 引用</li>
+                            <li>清理 .docker/.data/redis/、config/theme/、public/web.config</li>
+                        </ul>
+                    </div>
+                    <div class="phase phase-3">
+                        <div class="phase-title">✨ 第三阶段：功能增强（按需）</div>
+                        <ul>
+                            <li><strong>优先</strong>：健康检查端点、SQLite 优化、Admin IP 白名单、数据库清理命令</li>
+                            <li><strong>其次</strong>：Webhook 系统、审计日志、2FA、Prometheus Metrics</li>
+                            <li><strong>长期</strong>：S3 备份、订阅暂停、GeoIP 控制</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3 style="font-size:16px;margin-top:24px;">风险提醒</h3>
+                <ul>
+                    <li><strong>Mass Assignment 修复</strong>可能破坏现有 Admin API（如果前端依赖了某些字段的批量更新），需要逐个模型审查前端调用点</li>
+                    <li><strong>SQL 注入修复</strong>需要为每个受影响的控制器维护允许排序的字段白名单</li>
+                    <li><strong>Config API 脱敏</strong>需要确保前端不需要读取这些 secret 字段（通常前端只需要 key 名，不需要 value）</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
