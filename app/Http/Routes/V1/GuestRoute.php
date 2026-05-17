@@ -5,12 +5,15 @@ use App\Http\Controllers\V1\Guest\CommController;
 use App\Http\Controllers\V1\Guest\PaymentController;
 use App\Http\Controllers\V1\Guest\PlanController;
 use App\Http\Controllers\V1\Guest\TelegramController;
+use App\Http\Controllers\V1\HealthController;
 use Illuminate\Contracts\Routing\Registrar;
 
 class GuestRoute
 {
     public function map(Registrar $router)
     {
+        $router->get('/health', [HealthController::class, 'check']);
+
         $router->group([
             'prefix' => 'guest'
         ], function ($router) {
