@@ -38,6 +38,8 @@ class Kernel extends ConsoleKernel
         // reset
         $schedule->command('reset:traffic')->everyMinute()->onOneServer();
         $schedule->command('reset:log')->daily()->onOneServer();
+        // 每周清理一次过期数据（NorthFrank 免费环境建议保持启用以控制存储）
+        $schedule->command('cleanup:database', ['--type' => 'stats,logs', '--days' => 90])->weekly()->onOneServer();
         // send
         $schedule->command('send:remindMail', ['--force'])->dailyAt('11:30')->onOneServer();
         // backup Timing
