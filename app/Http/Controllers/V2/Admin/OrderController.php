@@ -133,10 +133,13 @@ class OrderController extends Controller
             return;
         }
 
-        collect($request->input('sort'))->each(function ($sort) use ($builder) {
+        $allowedSortFields = ['id', 'user_id', 'plan_id', 'total_amount', 'status', 'created_at'];
+        collect($request->input('sort'))->each(function ($sort) use ($builder, $allowedSortFields) {
             $field = $sort['id'];
             $direction = $sort['desc'] ? 'DESC' : 'ASC';
-            $builder->orderBy($field, $direction);
+            if (in_array($field, $allowedSortFields)) {
+                $builder->orderBy($field, $direction);
+            }
         });
     }
 

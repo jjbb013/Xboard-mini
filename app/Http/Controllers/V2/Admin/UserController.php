@@ -138,10 +138,13 @@ class UserController extends Controller
             return;
         }
 
-        collect($request->input('sort'))->each(function ($sort) use ($builder) {
+        $allowedSortFields = ['id', 'email', 'plan_id', 'expired_at', 'balance', 'created_at', 'last_login_at', 'transfer_enable'];
+        collect($request->input('sort'))->each(function ($sort) use ($builder, $allowedSortFields) {
             $field = $sort['id'];
             $direction = $sort['desc'] ? 'DESC' : 'ASC';
-            $builder->orderBy($field, $direction);
+            if (in_array($field, $allowedSortFields)) {
+                $builder->orderBy($field, $direction);
+            }
         });
     }
 
@@ -438,8 +441,12 @@ class UserController extends Controller
     public function sendMail(UserSendMail $request)
     {
         ini_set('memory_limit', '-1');
+        $allowedSortFields = ['id', 'email', 'plan_id', 'expired_at', 'balance', 'created_at', 'last_login_at', 'transfer_enable'];
         $sortType = in_array($request->input('sort_type'), ['ASC', 'DESC']) ? $request->input('sort_type') : 'DESC';
         $sort = $request->input('sort') ? $request->input('sort') : 'created_at';
+        if (!in_array($sort, $allowedSortFields)) {
+            $sort = 'created_at';
+        }
         $builder = User::orderBy($sort, $sortType);
         $this->applyFiltersAndSorts($request, $builder);
         $users = $builder->get();
@@ -464,8 +471,12 @@ class UserController extends Controller
 
     public function ban(Request $request)
     {
+        $allowedSortFields = ['id', 'email', 'plan_id', 'expired_at', 'balance', 'created_at', 'last_login_at', 'transfer_enable'];
         $sortType = in_array($request->input('sort_type'), ['ASC', 'DESC']) ? $request->input('sort_type') : 'DESC';
         $sort = $request->input('sort') ? $request->input('sort') : 'created_at';
+        if (!in_array($sort, $allowedSortFields)) {
+            $sort = 'created_at';
+        }
         $builder = User::orderBy($sort, $sortType);
         $this->applyFilters($request, $builder);
         try {

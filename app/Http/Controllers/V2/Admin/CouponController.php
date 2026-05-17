@@ -30,10 +30,13 @@ class CouponController extends Controller
         }
 
         if ($request->has('sort')) {
-            collect($request->input('sort'))->each(function ($sort) use ($builder) {
+            $allowedSortFields = ['id', 'name', 'code', 'type', 'value', 'status', 'created_at'];
+            collect($request->input('sort'))->each(function ($sort) use ($builder, $allowedSortFields) {
                 $key = $sort['id'];
                 $value = $sort['desc'] ? 'DESC' : 'ASC';
-                $builder->orderBy($key, $value);
+                if (in_array($key, $allowedSortFields)) {
+                    $builder->orderBy($key, $value);
+                }
             });
         }
     }

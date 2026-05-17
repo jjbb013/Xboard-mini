@@ -27,10 +27,13 @@ class TicketController extends Controller
         }
 
         if ($request->has('sort')) {
-            collect($request->input('sort'))->each(function ($sort) use ($builder) {
+            $allowedSortFields = ['id', 'user_id', 'subject', 'status', 'level', 'created_at', 'updated_at'];
+            collect($request->input('sort'))->each(function ($sort) use ($builder, $allowedSortFields) {
                 $key = $sort['id'];
                 $value = $sort['desc'] ? 'DESC' : 'ASC';
-                $builder->orderBy($key, $value);
+                if (in_array($key, $allowedSortFields)) {
+                    $builder->orderBy($key, $value);
+                }
             });
         }
     }
