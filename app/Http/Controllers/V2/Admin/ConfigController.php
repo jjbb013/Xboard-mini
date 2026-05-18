@@ -224,11 +224,28 @@ class ConfigController extends Controller
     {
         $data = $request->validated();
 
+        // 敏感字段列表：如果前端回传 *** 或空值，保留数据库原值
+        $sensitiveFields = [
+            'email_password',
+            'telegram_bot_token',
+            'recaptcha_v3_secret_key',
+            'turnstile_secret_key'
+        ];
+
         foreach ($data as $k => $v) {
             if ($k == 'frontend_theme') {
                 $themeService = app(ThemeService::class);
                 $themeService->switch($v);
             }
+
+            // 敏感字段脱敏保护：不保存掩码值
+            if (in_array($k, $sensitiveFields) && ($v === '***' || $v === '')) {
+                $currentValue = admin_setting($k);
+                if (!empty($currentValue)) {
+                    continue; // 保留数据库原值
+                }
+            }
+
             admin_setting([$k => $v]);
         }
 
