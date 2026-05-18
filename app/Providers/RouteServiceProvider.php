@@ -3,8 +3,6 @@
 namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 
 class RouteServiceProvider extends ServiceProvider
@@ -29,31 +27,7 @@ class RouteServiceProvider extends ServiceProvider
             resolve(\Illuminate\Routing\UrlGenerator::class)->forceScheme('https');
         }
 
-        $this->configureRateLimiting();
-
         parent::boot();
-    }
-
-    /**
-     * 配置 API 限流
-     */
-    protected function configureRateLimiting(): void
-    {
-        // 全局 API 限流：每 IP 每分钟 600 次（每秒 10 次，满足正常前端加载）
-        RateLimiter::for('api', function ($request) {
-            return Limit::perMinute(600)->by($request->ip());
-        });
-
-        // 订阅接口限流：每用户每分钟 30 次
-        RateLimiter::for('subscribe', function ($request) {
-            $user = $request->user();
-            return Limit::perMinute(30)->by($user ? $user->id : $request->ip());
-        });
-
-        // 认证接口限流：每 IP 每分钟 10 次
-        RateLimiter::for('auth', function ($request) {
-            return Limit::perMinute(10)->by($request->ip());
-        });
     }
 
     /**
@@ -94,7 +68,7 @@ class RouteServiceProvider extends ServiceProvider
     {
         Route::group([
             'prefix' => '/api/v1',
-            'middleware' => ['api', 'throttle:api'],
+            'middleware' => 'api',
             'namespace' => $this->namespace
         ], function ($router) {
             foreach (glob(app_path('Http//Routes//V1') . '/*.php') as $file) {
@@ -105,7 +79,7 @@ class RouteServiceProvider extends ServiceProvider
 
         Route::group([
             'prefix' => '/api/v2',
-            'middleware' => ['api', 'throttle:api'],
+            'middleware' => 'api',
             'namespace' => $this->namespace
         ], function ($router) {
             foreach (glob(app_path('Http//Routes//V2') . '/*.php') as $file) {
