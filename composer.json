@@ -59,8 +59,7 @@
             "Plugin\\": "plugins/"
         },
         "classmap": [
-            "database/seeders",
-            "database/factories"
+            "database/seeders"
         ],
         "files": [
             "app/Helpers/Functions.php"
