@@ -76,7 +76,7 @@ class User extends Authenticatable
         'next_reset_at' => 'timestamp',
         'last_reset_at' => 'timestamp',
     ];
-    protected $hidden = ['password', 'password_algo', 'password_salt', 'token', 'uuid'];
+    protected $hidden = ['password', 'password_algo', 'password_salt', 'uuid'];
 
     public const COMMISSION_TYPE_SYSTEM = 0;
     public const COMMISSION_TYPE_PERIOD = 1;
