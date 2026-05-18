@@ -182,10 +182,11 @@ class UserController extends Controller
      */
     public static function transformUserData(User $user): array
     {
+        $token = $user->token; // 先获取 token，不受 $hidden 影响
         $user = $user->toArray();
         $user['balance'] = $user['balance'] / 100;
         $user['commission_balance'] = $user['commission_balance'] / 100;
-        $user['subscribe_url'] = Helper::getSubscribeUrl($user['token']);
+        $user['subscribe_url'] = Helper::getSubscribeUrl($token);
         return $user;
     }
 
