@@ -39,9 +39,9 @@ class RouteServiceProvider extends ServiceProvider
      */
     protected function configureRateLimiting(): void
     {
-        // 全局 API 限流：每 IP 每分钟 120 次
+        // 全局 API 限流：每 IP 每分钟 600 次（每秒 10 次，满足正常前端加载）
         RateLimiter::for('api', function ($request) {
-            return Limit::perMinute(120)->by($request->ip());
+            return Limit::perMinute(600)->by($request->ip());
         });
 
         // 订阅接口限流：每用户每分钟 30 次
