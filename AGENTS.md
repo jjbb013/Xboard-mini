@@ -1,12 +1,12 @@
-# AGENTS.md — Xboard Project Guide
+# AGENTS.md — Xboard-mini Project Guide
 
-> This file is intended for AI coding agents. It describes the architecture, conventions, and workflows of the Xboard project. Xboard is a proxy protocol management panel built on Laravel.
+> This file is intended for AI coding agents. It describes the architecture, conventions, and workflows of the **xboard-mini** project. This is a fork of the Xboard proxy protocol management panel, specifically modified for zero-Redis, SQLite-first deployment on Northflank's free tier.
 
 ---
 
 ## 1. Project Overview
 
-**Xboard** is a web-based proxy protocol management panel. It provides:
+**Xboard-mini** is a web-based proxy protocol management panel forked from Xboard. It provides:
 
 - User subscription management for proxy protocols (V2Ray, Shadowsocks, Trojan, VMess, Hysteria, etc.).
 - A billing and commission system with support for multiple payment gateways.
@@ -16,8 +16,11 @@
 **Primary Language:** PHP 8.2+  
 **Framework:** Laravel 12 (upgraded from Laravel 11)  
 **Web Runtime:** Laravel Octane with Swoole  
-**Database:** MySQL 5.7+ or SQLite  
-**Queue / Cache:** Database (default) or Redis  
+**Database:** SQLite (default) or MySQL 5.7+  
+**Cache / Queue / Session:** Database (SQLite) — Redis has been completely removed  
+
+**Key Difference from Upstream Xboard:**  
+This fork targets the Northflank free tier. It removes all Redis dependencies, replaces MySQL with SQLite as the default, and uses a single-service SupervisorD architecture to work around Northflank's limitation that persistent volumes cannot be shared across multiple services.
 
 ---
 
@@ -27,11 +30,11 @@
 |-------|-----------|
 | Backend Framework | Laravel 12 (PHP 8.2+) |
 | High-Performance Runtime | Laravel Octane (Swoole) |
-| Frontend (Admin) | React + Shadcn UI + TailwindCSS *(prebuilt, not compiled in this repo)* |
+| Frontend (Admin) | React + Shadcn UI + TailwindCSS *(prebuilt, shipped as compiled assets)* |
 | Frontend (User) | Vue 3 + TypeScript + NaiveUI *(prebuilt, shipped as themes)* |
-| Database | MySQL 5.7+ or SQLite |
-| Cache / Session | Redis or Database |
-| Queue Worker | Database queue (`php artisan queue:work`) |
+| Database | SQLite (default) or MySQL 5.7+ |
+| Cache / Session / Queue | Database (SQLite tables: `cache`, `sessions`, `jobs`, `failed_jobs`) |
+| Queue Worker | SupervisorD (`php artisan queue:work`) + Laravel scheduler fallback |
 | Containerization | Docker + Docker Compose |
 | CI / CD | GitHub Actions (Docker image build and push to GHCR) |
 | Static Analysis | PHPStan (Larastan) at level 5 |
@@ -48,6 +51,11 @@
 - `google/cloud-storage` — Google Cloud Storage backups
 - `bacon/bacon-qr-code` — QR code generation
 - `symfony/yaml` — YAML parsing for subscription templates
+- `linfo/linfo` — System information
+- `zoujingli/ip2region` — IP geolocation
+
+**Removed from upstream:**
+- `laravel/horizon` — Removed because it requires Redis.
 
 ---
 
@@ -64,7 +72,7 @@
 │   │   ├── Middleware/     # Auth, Admin, Client, Server, Language, etc.
 │   │   ├── Requests/       # Form request validation classes
 │   │   ├── Resources/      # Eloquent API resources
-│   │   └── Routes/         # Route definitions for V1 and V2 APIs
+│   │   └── Routes/         # Route definition classes for V1 and V2 APIs
 │   ├── Jobs/               # Queue jobs (email, Telegram, traffic fetch, etc.)
 │   ├── Models/             # Eloquent models (User, Server, Plan, Order, etc.)
 │   ├── Observers/          # Model observers
@@ -79,7 +87,7 @@
 ├── config/                 # Laravel configuration files
 ├── database/
 │   ├── factories/          # Model factories
-│   ├── migrations/         # 30 migration files
+│   ├── migrations/         # 31 migration files (including manually created cache table migration)
 │   └── seeders/            # Database seeders
 ├── docs/                   # Deployment and migration documentation
 ├── plugins/                # Payment plugin directory (AlipayF2f, Epay, Stripe, etc.)
@@ -99,15 +107,16 @@
 ### Autoloaded Namespaces (PSR-4)
 
 - `App\` → `app/`
-- `Library\` → `library/` *(currently empty / not present)*
+- `Library\` → `library/` *(directory does not currently exist)*
 - `Plugin\` → `plugins/`
 
 ### Global Helper File
 
 `app/Helpers/Functions.php` is loaded via `composer.json` `files` autoload. It defines:
 
-- `admin_setting($key, $default)` — read/write application settings.
-- `admin_settings_batch(array $keys)` — batch read settings.
+- `admin_setting($key, $default)` — read/write application settings from the `v2_setting` table.
+- `admin_settings_batch(array $keys)` — batch read settings with caching.
+- `source_base_url(string $path)` — get base URL from Referer or Host.
 
 ---
 
@@ -122,6 +131,10 @@ The application exposes two API versions:
 
 Routes are defined in `app/Http/Routes/V1/` and `app/Http/Routes/V2/` as classes with a `map(Registrar $router)` method. The `RouteServiceProvider` globs these files and registers them automatically.
 
+**Route Files:**
+- V1: `ClientRoute.php`, `GuestRoute.php`, `PassportRoute.php`, `ServerRoute.php`, `UserRoute.php`
+- V2: `AdminRoute.php`, `PassportRoute.php`, `UserRoute.php`
+
 **Middleware Groups:**
 
 - `web` — Session, CSRF, cookies (used for the theme frontend).
@@ -130,6 +143,7 @@ Routes are defined in `app/Http/Routes/V1/` and `app/Http/Routes/V2/` as classes
 - `user` — Authenticated user routes.
 - `client` — Client app routes (subscription clients).
 - `server` — Server/node reporting routes.
+- `staff` — Staff-level routes.
 
 ---
 
@@ -143,15 +157,20 @@ Core models live in `app/Models/`. The database uses `v2_` prefixed table names 
 - `v2_server` — Proxy server/node definitions (Shadowsocks, VMess, Trojan, Hysteria, etc.).
 - `v2_plan` — Subscription plans.
 - `v2_order` — User orders.
+- `v2_payment` — Payment records.
 - `v2_commission_log` — Affiliate commission records.
 - `v2_coupon` — Discount coupons.
-- `v2_giftcard_template / v2_giftcard_code` — Gift card system.
+- `v2_giftcard_template / v2_giftcard_code / v2_giftcard_usage` — Gift card system.
 - `v2_ticket / v2_ticket_message` — Support tickets.
-- `v2_stat_user / v2_stat_server` — Traffic and server statistics.
+- `v2_stat_user / v2_stat_server / v2_stat` — Traffic and server statistics.
 - `v2_setting` — Key-value application settings.
 - `v2_plugin` — Installed plugin registry.
+- `v2_server_group / v2_server_route / v2_server_log` — Server organization and logs.
+- `v2_invite_code / v2_knowledge / v2_notice` — Invites, knowledge base, notices.
+- `v2_traffic_reset_log` — Traffic reset history.
+- `cache`, `sessions`, `jobs`, `failed_jobs` — Laravel system tables (SQLite).
 
-Migrations are stored in `database/migrations/`. There are ~30 migration files. New features should add migrations following Laravel conventions.
+**Migrations:** 31 files in `database/migrations/`. Notably, `2025_08_08_000000_create_cache_table.php` was manually added (instead of using `php artisan cache:table`) to make initialization idempotent and reliable in containerized environments.
 
 ### 5.2 Services
 
@@ -164,6 +183,8 @@ Business logic is encapsulated in `app/Services/`:
 - `UpdateService` — Version tracking and update orchestration.
 - `StatisticalService`, `TrafficResetService` — Reporting and traffic accounting.
 - `MailService`, `TelegramService` — Notifications.
+- `UserOnlineService` — Online user tracking and cleanup.
+- `GiftCardService` — Gift card logic.
 - `Plugin\PluginManager` — Plugin lifecycle management.
 
 ### 5.3 Protocols (Subscription Handlers)
@@ -173,6 +194,7 @@ Business logic is encapsulated in `app/Services/`:
 - `Clash`, `ClashMeta`, `Shadowrocket`, `QuantumultX`, `Stash`, `Surge`, `Surfboard`, `Loon`
 - `SingBox` — JSON-based Sing-box config
 - `General` — Plain URL list
+- `Shadowsocks` — Shadowsocks-specific format
 
 Protocol classes are auto-discovered by `ProtocolManager` (registered via `ProtocolServiceProvider`).
 
@@ -219,7 +241,6 @@ Custom commands in `app/Console/Commands/`:
 
 | Command | Description |
 |---------|-------------|
-| `xboard:install` | Run migrations, install default plugins, create admin *(used during first setup)* |
 | `xboard:update` | Run migrations, restore plugins, update version cache, refresh theme |
 | `xboard:create-admin` | Create admin user from `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars |
 | `xboard:statistics` | Daily statistics aggregation |
@@ -234,10 +255,18 @@ Custom commands in `app/Console/Commands/`:
 | `reset:user` | Reset user data |
 | `send:remindMail` | Send expiration/traffic reminder emails (daily at 11:30) |
 | `backup:database` | Backup database to Google Cloud Storage |
+| `cleanup:database` | Clean expired stats and logs (weekly, recommended for Northflank free tier) |
 | `migrate:v2b` | Migrate data from v2board |
 | `export:v2log` | Export v2board logs |
 
+**Known Issue:** `XboardUpdate` references `XboardInstall::restoreProtectedPlugins($this)`, but the `XboardInstall` class does not exist in this repository. This is a residual reference from upstream that may cause `xboard:update` to fail if not addressed.
+
 **Scheduling:** Defined in `app/Console/Kernel.php`. Uses `onOneServer()` for cluster safety. Plugin schedules are registered dynamically via `PluginManager::registerPluginSchedules()`.
+
+**Northflank-specific schedule additions:**
+- `cleanup:database --type=stats,logs --days=90` runs weekly to control SQLite storage size.
+- `queue:work --max-time=55 --stop-when-empty --max-jobs=50 --sleep=3` runs every minute as a fallback queue worker for environments without persistent process support.
+- `cleanup:expired-online-status` runs every minute to clean stale online user records.
 
 ---
 
@@ -255,8 +284,11 @@ cp .env.example .env
 # Generate app key
 php artisan key:generate
 
-# Run migrations and install
-php artisan xboard:install
+# Run migrations
+php artisan migrate --force
+
+# Create admin user
+php artisan xboard:create-admin
 
 # Start Octane development server
 php artisan octane:start --port=8080 --host=0.0.0.0
@@ -265,24 +297,36 @@ php artisan octane:start --port=8080 --host=0.0.0.0
 php artisan queue:work --tries=3
 ```
 
-### Docker Compose (Recommended)
+### Docker Compose (Recommended for local testing)
 
 ```bash
 # Quick start (from README)
-git clone -b compose --depth 1 https://github.com/cedar2025/Xboard
-cd Xboard
-docker compose run -it --rm \
-    -e ENABLE_SQLITE=true \
-    -e ENABLE_REDIS=true \
-    -e ADMIN_ACCOUNT=admin@demo.com \
-    web php artisan xboard:install
 docker compose up -d
 ```
 
-The Docker image (`ghcr.io/cedar2025/xboard:new`) is based on `phpswoole/swoole:php8.2-alpine` and runs:
+The Docker image is based on `phpswoole/swoole:php8.2-alpine` and runs:
 
 - **Octane** on port `8080`
-- **Queue worker** via Supervisor
+- **Queue worker** via SupervisorD
+
+### Northflank Deployment
+
+This project is specifically designed for Northflank's free tier:
+
+1. Use `northflank.yml` to define a single `web` service.
+2. Attach a persistent storage volume named `xboard-data`.
+3. The `entrypoint.sh` script handles all initialization on first boot:
+   - Validates `APP_KEY` is set.
+   - Creates SQLite database file if using SQLite.
+   - Runs `php artisan migrate --force`.
+   - Sets admin secure path if `ADMIN_SECURE_PATH` is provided.
+   - Creates admin user if `ADMIN_EMAIL` and `ADMIN_PASSWORD` are provided.
+   - Starts SupervisorD to manage Octane and the queue worker.
+
+**Critical Northflank constraints:**
+- Only one persistent volume can be attached per service.
+- Therefore, web and queue worker must run in the same container (handled by SupervisorD).
+- The volume should be mounted at `/www/storage` to persist SQLite data, logs, and cached files.
 
 ### Static Analysis
 
@@ -325,7 +369,7 @@ vendor/bin/phpstan analyse --configuration=phpstan.neon
 
 ## 9. Testing
 
-**There is currently no test suite in this project.** The `tests/` directory does not exist, and `phpunit` is only listed as a dev dependency for Larastan compatibility.
+**There is currently no test suite in this project.** The `tests/` directory does not exist, and there is no `phpunit.xml` or `phpunit.xml.dist` configuration file. `phpunit` is listed as a dev dependency for Larastan compatibility only.
 
 If you add tests:
 
@@ -355,11 +399,11 @@ If you add tests:
 - Triggered on push to `master` or `new-dev`.
 - Builds multi-platform images (`linux/amd64`, `linux/arm64`) for GHCR.
 - Tags: `new`, `latest`, branch name, SHA, and version.
-- Signs images with Cosign.
+- Workflow file: `.github/workflows/docker-publish.yml`
 
-### Manual Update (on server)
+### Manual Update (on server with Git)
 
-Use the provided `update.sh` script (requires Git):
+Use the provided `update.sh` script:
 
 ```bash
 ./update.sh
@@ -373,13 +417,13 @@ This fetches the latest `master`, resets hard, runs `composer update`, and execu
 |----------|---------|
 | `APP_KEY` | Laravel encryption key (32 chars, base64) |
 | `APP_URL` | Application base URL |
-| `DB_CONNECTION` | `mysql` or `sqlite` |
-| `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | Database credentials |
+| `DB_CONNECTION` | `sqlite` (default for this fork) or `mysql` |
+| `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | MySQL credentials (if using MySQL) |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Auto-create admin on first Docker boot |
 | `ADMIN_SECURE_PATH` | Custom admin panel path |
-| `QUEUE_CONNECTION` | `database` or `redis` |
-| `CACHE_DRIVER` | `database` or `redis` |
-| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | Redis configuration |
+| `QUEUE_CONNECTION` | `database` (default) |
+| `CACHE_DRIVER` | `database` (default) |
+| `SESSION_DRIVER` | `database` (default) |
 | `MAIL_*` | SMTP / Mailgun configuration |
 | `ENABLE_AUTO_BACKUP_AND_UPDATE` | Enable Google Cloud Storage backups |
 | `GOOGLE_CLOUD_*` | GCS backup credentials |
@@ -388,11 +432,11 @@ This fetches the latest `master`, resets hard, runs `composer update`, and execu
 
 ## 12. Important Conventions for Agents
 
-1. **Always use `admin_setting()` for configuration reads.** Do not read `env()` directly in business logic (except in config files or service providers). Settings are cached; `admin_setting()` handles caching and fallbacks to `config/v2board.php`.
+1. **Always use `admin_setting()` for configuration reads.** Do not read `env()` directly in business logic (except in config files or service providers). Settings are cached; `admin_setting()` handles caching and fallbacks.
 
 2. **Database tables use `v2_` prefix.** Migrations should preserve this convention for consistency.
 
-3. **Do not delete built-in plugins.** The `XboardInstall` and `XboardUpdate` commands restore "protected" plugins automatically.
+3. **Do not delete built-in plugins.** The `xboard:update` command attempts to restore "protected" plugins (though the referenced `XboardInstall` class is currently missing).
 
 4. **Theme assets are copied to `public/theme/`.** When modifying themes, remember that `ThemeService` copies the theme directory on first load or when switched.
 
@@ -403,6 +447,10 @@ This fetches the latest `master`, resets hard, runs `composer update`, and execu
 7. **Queue jobs should be idempotent.** Many jobs run on a schedule; design them to be safe if retried.
 
 8. **When modifying the admin path, a restart is required.** Octane caches the route definitions in memory.
+
+9. **SQLite is the default and preferred database for this fork.** When making changes, ensure they work with SQLite. Avoid MySQL-specific raw SQL.
+
+10. **Keep storage under control.** The Northflank free tier has limited storage. The `cleanup:database` command is scheduled weekly to purge old stats and logs. Consider this when adding new logging or statistics tables.
 
 ---
 
