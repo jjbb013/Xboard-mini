@@ -183,6 +183,10 @@ class UserController extends Controller
         $user['balance'] = $user['balance'] / 100;
         $user['commission_balance'] = $user['commission_balance'] / 100;
         $user['subscribe_url'] = Helper::getSubscribeUrl($user['token']);
+        // 在邮箱后显示备注，方便 Admin 快速识别用户
+        if (!empty($user['remarks'])) {
+            $user['email'] = $user['email'] . ' · ' . $user['remarks'];
+        }
         return $user;
     }
 
